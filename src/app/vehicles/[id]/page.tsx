@@ -7,6 +7,7 @@ import NavigationBar from '@/components/dashboard/NavigationBar';
 import VehicleCard from '@/components/dashboard/VehicleCard';
 import FloatingActionButton from '@/components/dashboard/FloatingActionButton';
 import InquiryCard, { type Inquiry } from '@/components/dashboard/InquiryCard';
+import DisputeCard, { type Dispute } from '@/components/dashboard/DisputeCard';
 
 // Mock vehicle data - same as in vehicles page
 const vehicleData: { [key: string]: any } = {
@@ -93,6 +94,69 @@ const vehicleData: { [key: string]: any } = {
         ],
       },
     ],
+    disputes: [
+      {
+        id: 'ET/DISP/24-25/01255',
+        vehicleName: 'Toyota Crysta',
+        plateNumber: 'MP09-GP4567',
+        receivedDate: '5 dec 2025',
+        status: 'open' as const,
+        disputeRaised: 'Broken Oil Filter',
+        action: 'edit' as const,
+        showVehicleInfo: true,
+      },
+      {
+        id: 'ET/DISP/24-25/01256',
+        vehicleName: 'Toyota Crysta',
+        plateNumber: 'MP09-GP4567',
+        receivedDate: '5 dec 2025',
+        status: 'declined' as const,
+        disputeRaised: 'Broken Oil Filter',
+        showVehicleInfo: true,
+      },
+      {
+        id: 'ET/DISP/24-25/01257',
+        vehicleName: 'Toyota Crysta',
+        plateNumber: 'MP09-GP4567',
+        receivedDate: '5 dec 2025',
+        status: 'open' as const,
+        disputeRaised: 'Broken Oil Filter',
+        action: 'accept' as const,
+        showVehicleInfo: true,
+      },
+      {
+        id: 'ET/DISP/24-25/01258',
+        vehicleName: 'Toyota Crysta',
+        plateNumber: 'MP09-GP4567',
+        openedDate: '5 dec 2025',
+        status: 'open' as const,
+        disputeRaised: 'Broken Oil Filter',
+        resolutionStatus: 'Refund initiated',
+        action: 'chat' as const,
+        newNotifications: 3,
+        newMessages: 2,
+        showVehicleInfo: true,
+        media: [
+          { id: 'med-1', type: 'image' as const, url: '/placeholder.jpg' },
+          { id: 'med-2', type: 'image' as const, url: '/placeholder.jpg' },
+          { id: 'med-3', type: 'image' as const, url: '/placeholder.jpg' },
+          { id: 'med-4', type: 'image' as const, url: '/placeholder.jpg' },
+          { id: 'med-5', type: 'image' as const, url: '/placeholder.jpg' },
+          { id: 'med-6', type: 'image' as const, url: '/placeholder.jpg' },
+          { id: 'med-7', type: 'audio' as const, url: '/audio.mp3', duration: 5 },
+        ],
+      },
+      {
+        id: 'ET/DISP/24-25/01259',
+        vehicleName: 'Toyota Crysta',
+        plateNumber: 'MP09-GP4567',
+        closedDate: '5 dec 2025',
+        status: 'closed' as const,
+        disputeRaised: 'Broken Oil Filter',
+        resolutionStatus: 'Oil filter replaced',
+        showVehicleInfo: true,
+      },
+    ],
   },
   '2': {
     id: '2',
@@ -156,6 +220,28 @@ const vehicleData: { [key: string]: any } = {
         ],
       },
     ],
+    disputes: [
+      {
+        id: 'ET/DISP/24-25/01350',
+        vehicleName: 'Tata Nexon',
+        plateNumber: 'MH 12 AB 5678',
+        receivedDate: '12 dec 2025',
+        status: 'open' as const,
+        disputeRaised: 'Engine Service Overcharge',
+        action: 'accept' as const,
+        showVehicleInfo: true,
+      },
+      {
+        id: 'ET/DISP/24-25/01351',
+        vehicleName: 'Tata Nexon',
+        plateNumber: 'MH 12 AB 5678',
+        closedDate: '10 dec 2025',
+        status: 'closed' as const,
+        disputeRaised: 'Air Filter Quality Issue',
+        resolutionStatus: 'Replacement provided',
+        showVehicleInfo: true,
+      },
+    ],
   },
 };
 
@@ -198,7 +284,22 @@ export default function VehicleDetailPage() {
   };
 
   return (
-    <div className="bg-[#f5f3f4] relative min-h-screen w-full max-w-[440px] mx-auto">
+    <>
+      {/* Mobile-only message for larger screens */}
+      <div className="hidden md:flex items-center justify-center min-h-screen bg-gradient-to-br from-[#f24822] to-[#2294f2]">
+        <div className="text-center p-12 bg-white rounded-2xl shadow-2xl max-w-md mx-4">
+          <div className="mb-6">
+            <svg className="w-20 h-20 mx-auto text-[#f24822]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">Mobile Only</h1>
+          <p className="text-lg text-gray-600">This site can only be viewed on mobile devices</p>
+        </div>
+      </div>
+
+      {/* Main content - only visible on mobile */}
+      <div className="md:hidden bg-[#f5f3f4] relative min-h-screen w-full max-w-[440px] mx-auto">
       {/* Header */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] bg-white h-[70px] z-50 shadow-sm">
         {/* Status Bar */}
@@ -531,10 +632,25 @@ export default function VehicleDetailPage() {
 
           {/* Disputes Tab Content */}
           {activeTab === 'disputes' && (
-            <div className="bg-white rounded-[12px] p-[16px]">
-              <p className="text-[14px] text-[#99a2b6] text-center">
-                No disputes found for this vehicle
-              </p>
+            <div className="flex flex-col gap-[12px]">
+              {vehicle.disputes && vehicle.disputes.length > 0 ? (
+                vehicle.disputes.map((dispute: Dispute) => (
+                  <DisputeCard
+                    key={dispute.id}
+                    dispute={dispute}
+                    onEdit={(id) => console.log('Edit dispute:', id)}
+                    onAccept={(id) => console.log('Accept dispute:', id)}
+                    onView={(id) => console.log('View dispute details:', id)}
+                    onChat={(id) => console.log('Open chat for dispute:', id)}
+                  />
+                ))
+              ) : (
+                <div className="bg-white rounded-[12px] p-[16px]">
+                  <p className="text-[14px] text-[#99a2b6] text-center">
+                    No disputes found for this vehicle
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -556,6 +672,7 @@ export default function VehicleDetailPage() {
 
       {/* Navigation Bar */}
       <NavigationBar />
-    </div>
+      </div>
+    </>
   );
 }

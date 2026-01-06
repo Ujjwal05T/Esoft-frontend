@@ -68,7 +68,22 @@ const vehicles = [
 
 export default function VehiclesPage() {
   return (
-    <div className="bg-white relative min-h-screen w-full max-w-[440px] mx-auto">
+    <>
+      {/* Mobile-only message for larger screens */}
+      <div className="hidden md:flex items-center justify-center min-h-screen bg-gradient-to-br from-[#f24822] to-[#2294f2]">
+        <div className="text-center p-12 bg-white rounded-2xl shadow-2xl max-w-md mx-4">
+          <div className="mb-6">
+            <svg className="w-20 h-20 mx-auto text-[#f24822]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">Mobile Only</h1>
+          <p className="text-lg text-gray-600">This site can only be viewed on mobile devices</p>
+        </div>
+      </div>
+
+      {/* Main content - only visible on mobile */}
+      <div className="md:hidden bg-white relative min-h-screen w-full max-w-[440px] mx-auto">
       {/* Header */}
       <Header />
 
@@ -113,6 +128,7 @@ export default function VehiclesPage() {
 
       {/* Navigation Bar */}
       <NavigationBar />
-    </div>
+      </div>
+    </>
   );
 }
