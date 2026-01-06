@@ -13,10 +13,10 @@ export default function Dashboard() {
       <Header />
 
       {/* Main Content Container */}
-      <div className="pt-[121px] pb-[117px] px-[16px]">
+      <div className="pt-[70px] pb-[117px] px-[16px]">
         <div className="flex flex-col gap-[24px] w-full py-[16px]">
           {/* Status Cards Row */}
-          <div className="flex flex-wrap gap-[20px] items-start w-full">
+          <div className="flex flex-wrap gap-[10px] items-start w-full">
             <StatusCard
               title="Vehicles Assigned"
               value="5"

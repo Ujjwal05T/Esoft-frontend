@@ -11,19 +11,19 @@ export default function AddVehicleCard() {
           alt=""
           fill
           className="object-cover object-center"
-          style={{ transform: 'scale(2.08) translateY(-31%)' }}
+          style={{ transform: 'scale(1.88) translateY(-17%) translateX(38%)' }}
         />
       </div>
 
       {/* Content */}
       <div className="absolute flex items-center justify-center left-[11px] top-[21px] z-10">
-        <p className="font-black leading-[36px] text-[32px] text-white tracking-[-1.28px] w-[169px]">
+        <p className="font-black leading-[36px] text-[30px] text-white tracking-[-1.28px] w-[169px]">
           Add a New Vehicle
         </p>
       </div>
 
       {/* Icon */}
-      <div className="absolute left-[11px] top-[93px] w-[32px] h-[32px] z-10">
+      <div className="absolute left-[11px] top-[103px] w-[32px] h-[32px] z-10">
         <Image
           src="/assets/icons/arrow-diagonal.svg"
           alt="Add"

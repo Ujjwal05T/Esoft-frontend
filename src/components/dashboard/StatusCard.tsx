@@ -24,7 +24,7 @@ export default function StatusCard({
   return (
     <CardWrapper {...cardProps}>
       <div
-        className={`${bgColor} h-[155px] overflow-clip relative rounded-[9px] w-[193px]`}
+        className={`${bgColor} h-[155px] overflow-clip relative rounded-[9px] w-[185px]`}
       >
         <div className="absolute flex items-center justify-center left-[10px] top-[25px]">
           <p className="font-semibold leading-normal text-[#f5f3f4] text-[16px] text-left tracking-[-0.64px]">
