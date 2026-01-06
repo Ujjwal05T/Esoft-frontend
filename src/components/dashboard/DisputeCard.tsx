@@ -1,7 +1,8 @@
 import React from 'react';
+import StatusBadge, { StatusType } from '../ui/StatusBadge';
 
 // TypeScript Interfaces
-export type DisputeStatus = 'open' | 'closed' | 'declined';
+export type DisputeStatus = Extract<StatusType, 'open' | 'closed' | 'declined'>;
 export type DisputeAction = 'edit' | 'accept' | 'chat';
 
 export interface DisputeMedia {
@@ -36,30 +37,7 @@ interface DisputeCardProps {
   onChat?: (id: string) => void;
 }
 
-// Status configuration utility
-const getStatusConfig = (status: DisputeStatus) => {
-  const configs = {
-    open: {
-      bgColor: 'bg-[#ff6600]',
-      borderColor: 'border-[#ff6600]',
-      textColor: 'text-white',
-      label: 'Open',
-    },
-    closed: {
-      bgColor: 'bg-[#289d27]',
-      borderColor: 'border-[#289d27]',
-      textColor: 'text-white',
-      label: 'Closed',
-    },
-    declined: {
-      bgColor: 'bg-[#e5383b]',
-      borderColor: 'border-[#e5383b]',
-      textColor: 'text-white',
-      label: 'Declined',
-    },
-  };
-  return configs[status];
-};
+
 
 export default function DisputeCard({
   dispute,
@@ -68,7 +46,6 @@ export default function DisputeCard({
   onView,
   onChat,
 }: DisputeCardProps) {
-  const statusConfig = getStatusConfig(dispute.status);
   const showVehicleInfo = dispute.showVehicleInfo !== false;
   const action = dispute.action || 'edit';
 
@@ -115,13 +92,7 @@ export default function DisputeCard({
             </p>
           </div>
         ) : (
-          <div
-            className={`${statusConfig.bgColor} ${statusConfig.borderColor} border px-[12px] py-[4px] rounded-[7px] flex items-center justify-center`}
-          >
-            <p className={`${statusConfig.textColor} text-[12px] font-medium tracking-[-0.41px]`}>
-              {statusConfig.label}
-            </p>
-          </div>
+          <StatusBadge status={dispute.status} />
         )}
       </div>
 

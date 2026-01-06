@@ -8,6 +8,32 @@ import VehicleCard from '@/components/dashboard/VehicleCard';
 import FloatingActionButton from '@/components/dashboard/FloatingActionButton';
 import InquiryCard, { type Inquiry } from '@/components/dashboard/InquiryCard';
 import DisputeCard, { type Dispute } from '@/components/dashboard/DisputeCard';
+import RaiseDisputeOverlay from '@/components/overlays/RaiseDisputeOverlay';
+import RequestPartOverlay from '@/components/overlays/RequestPartOverlay';
+
+// Mock data for Raise Dispute overlay
+const orderSuggestions = [
+  { id: '1', orderId: 'ord/esoft/5420012/25-26', date: '24 Dec 2025' },
+  { id: '2', orderId: 'ord/esoft/5489812/25-26', date: '24 Dec 2025' },
+  { id: '3', orderId: 'ord/esoft/5490711/25-26', date: '24 Dec 2025' },
+  { id: '4', orderId: 'ord/esoft/5445324/25-26', date: '22 Dec 2025' },
+];
+
+const partsOptions = [
+  { id: '1', name: 'Oil Filter' },
+  { id: '2', name: 'Rear Brake Pads' },
+  { id: '3', name: 'Replace Order' },
+  { id: '4', name: 'Front Brake Pads' },
+  { id: '5', name: 'Air Filter' },
+];
+
+const reasonsOptions = [
+  { id: '1', name: 'Part Damaged' },
+  { id: '2', name: 'Wrong Part Delivered' },
+  { id: '3', name: 'Quality Issue' },
+  { id: '4', name: 'Missing Parts' },
+  { id: '5', name: 'Defective Part' },
+];
 
 // Mock vehicle data - same as in vehicles page
 const vehicleData: { [key: string]: any } = {
@@ -47,51 +73,86 @@ const vehicleData: { [key: string]: any } = {
     ],
     inquiries: [
       {
-        id: 'ET/INQ/24-25/01255',
+        id: 'ET/SALES/24-25/01255',
+        vehicleName: 'Toyota Crysta',
+        numberPlate: 'MP09-GP4567',
         placedDate: '5 dec 2025',
-        status: 'approved' as const,
+        status: 'open' as const,
         inquiryBy: 'Sohan',
         jobCategory: 'Brake Parts',
         items: [
-          {
-            id: 'item-1',
-            itemName: 'Brake Pad Set (Front)',
-            preferredBrand: 'OEM',
-            notes: 'chdiujdiwkspwodl[wfkiodfk',
-            quantity: 1,
-          },
-          {
-            id: 'item-2',
-            itemName: 'Brake Pad Set (Rear)',
-            preferredBrand: 'After Market',
-            notes: 'chdiujdiwkspwodl[wfkiodfk',
-            quantity: 1,
-          },
+          { id: 'item-1', itemName: 'Brake Pad Set (Front)', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-2', itemName: 'Oil Filter (Synthetic)', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-3', itemName: 'Wiper Blade', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-4', itemName: 'Air Filter', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 1 },
+          { id: 'item-5', itemName: 'Spark Plug', preferredBrand: 'NGK', notes: 'Iridium', quantity: 4 },
+          { id: 'item-6', itemName: 'Brake Disc (Front)', preferredBrand: 'Brembo', notes: 'High performance', quantity: 2 },
+          { id: 'item-7', itemName: 'Clutch Plate', preferredBrand: 'Valeo', notes: 'Standard', quantity: 1 },
+          { id: 'item-8', itemName: 'Timing Belt', preferredBrand: 'Gates', notes: 'Reinforced', quantity: 1 },
+          { id: 'item-9', itemName: 'Water Pump', preferredBrand: 'OEM', notes: 'With gasket', quantity: 1 },
+          { id: 'item-10', itemName: 'Thermostat', preferredBrand: 'OEM', notes: 'Standard temp', quantity: 1 },
         ],
-        media: [
-          { id: 'm1', type: 'image' as const, url: '/placeholder.jpg' },
-          { id: 'm2', type: 'image' as const, url: '/placeholder.jpg' },
-          { id: 'm3', type: 'audio' as const, url: '/audio.mp3', duration: 5 },
-        ],
+        media: [],
       },
       {
-        id: 'ET/INQ/24-25/01256',
-        placedDate: '5 dec 2025',
+        id: 'ET/SALES/24-25/01256',
+        vehicleName: 'Toyota Crysta',
+        numberPlate: 'MP09-GP4567',
+        placedDate: '3 dec 2025',
+        declinedDate: '5 dec 2025',
         status: 'declined' as const,
         inquiryBy: 'Sohan',
         jobCategory: 'Brake Parts',
         items: [
-          {
-            id: 'item-3',
-            itemName: 'Brake Thaal',
-            preferredBrand: 'After Market',
-            notes: 'TVS',
-            quantity: 2,
-          },
+          { id: 'item-11', itemName: 'Brake Pad Set (Front)', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-12', itemName: 'Oil Filter (Synthetic)', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-13', itemName: 'Wiper Blade', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-14', itemName: 'Brake Disc (Rear)', preferredBrand: 'After Market', notes: 'Economy', quantity: 2 },
+          { id: 'item-15', itemName: 'Brake Fluid', preferredBrand: 'Castrol', notes: 'DOT 4', quantity: 1 },
+          { id: 'item-16', itemName: 'Wheel Bearing', preferredBrand: 'SKF', notes: 'Front left', quantity: 1 },
+          { id: 'item-17', itemName: 'CV Joint', preferredBrand: 'OEM', notes: 'With boot', quantity: 1 },
+          { id: 'item-18', itemName: 'Tie Rod End', preferredBrand: 'Moog', notes: 'Outer', quantity: 2 },
+          { id: 'item-19', itemName: 'Ball Joint', preferredBrand: 'OEM', notes: 'Lower', quantity: 2 },
+          { id: 'item-20', itemName: 'Shock Absorber', preferredBrand: 'Monroe', notes: 'Front pair', quantity: 2 },
         ],
-        media: [
-          { id: 'm4', type: 'image' as const, url: '/placeholder.jpg' },
+        media: [],
+      },
+      {
+        id: 'ET/SALES/24-25/01257',
+        vehicleName: 'Toyota Crysta',
+        numberPlate: 'MP09-GP4567',
+        placedDate: '5 dec 2025',
+        status: 'open' as const,
+        inquiryBy: 'Sohan',
+        jobCategory: 'Engine Parts',
+        items: [
+          { id: 'item-21', itemName: 'Brake Pad Set (Front)', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-22', itemName: 'Oil Filter (Synthetic)', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-23', itemName: 'Wiper Blade', preferredBrand: 'OEM', notes: 'TVS bike', quantity: 2 },
+          { id: 'item-24', itemName: 'Engine Oil', preferredBrand: 'Castrol', notes: '5W-30 Synthetic', quantity: 5 },
+          { id: 'item-25', itemName: 'Oil Drain Plug', preferredBrand: 'OEM', notes: 'With gasket', quantity: 1 },
+          { id: 'item-26', itemName: 'Fuel Filter', preferredBrand: 'Bosch', notes: 'Diesel', quantity: 1 },
+          { id: 'item-27', itemName: 'Cabin Filter', preferredBrand: 'Mann', notes: 'Carbon activated', quantity: 1 },
+          { id: 'item-28', itemName: 'Drive Belt', preferredBrand: 'Gates', notes: 'Serpentine', quantity: 1 },
+          { id: 'item-29', itemName: 'Tensioner', preferredBrand: 'INA', notes: 'Complete assembly', quantity: 1 },
+          { id: 'item-30', itemName: 'Idler Pulley', preferredBrand: 'OEM', notes: 'Standard', quantity: 1 },
         ],
+        media: [],
+      },
+      {
+        id: 'ET/SALES/24-25/01258',
+        vehicleName: 'Toyota Crysta',
+        numberPlate: 'MP09-GP4567',
+        placedDate: '1 dec 2025',
+        closedDate: '5 dec 2025',
+        status: 'closed' as const,
+        inquiryBy: 'Sohan',
+        jobCategory: 'Brake Parts',
+        items: [
+          { id: 'item-31', itemName: 'Brake Pad Set (Front)', preferredBrand: 'OEM', notes: 'Installed', quantity: 2 },
+          { id: 'item-32', itemName: 'Brake Disc (Front)', preferredBrand: 'OEM', notes: 'Installed', quantity: 2 },
+        ],
+        media: [],
       },
     ],
     disputes: [
@@ -194,21 +255,23 @@ const vehicleData: { [key: string]: any } = {
     ],
     inquiries: [
       {
-        id: 'ET/INQ/24-25/01300',
+        id: 'ET/SALES/24-25/01300',
+        vehicleName: 'Tata Nexon',
+        numberPlate: 'MH 12 AB 5678',
         placedDate: '10 dec 2025',
         status: 'requested' as const,
         inquiryBy: 'Rajesh',
         jobCategory: 'Engine Service',
         items: [
           {
-            id: 'item-5',
+            id: 'item-6',
             itemName: 'Oil Filter',
             preferredBrand: 'Mann Filter',
             notes: 'High efficiency filter required',
             quantity: 1,
           },
           {
-            id: 'item-6',
+            id: 'item-7',
             itemName: 'Engine Oil',
             preferredBrand: 'Castrol',
             notes: '5W-30 grade synthetic',
@@ -216,7 +279,7 @@ const vehicleData: { [key: string]: any } = {
           },
         ],
         media: [
-          { id: 'm5', type: 'image' as const, url: '/placeholder.jpg' },
+          { id: 'm12', type: 'image' as const, url: '/placeholder.jpg' },
         ],
       },
     ],
@@ -264,6 +327,8 @@ export default function VehicleDetailPage() {
   const [expandedInquiries, setExpandedInquiries] = useState<{
     [key: string]: boolean;
   }>({});
+  const [showRaiseDisputeOverlay, setShowRaiseDisputeOverlay] = useState(false);
+  const [showRequestPartOverlay, setShowRequestPartOverlay] = useState(false);
 
   if (!vehicle) {
     return <div>Vehicle not found</div>;
@@ -616,8 +681,10 @@ export default function VehicleDetailPage() {
                     isExpanded={expandedInquiries[inquiry.id] || false}
                     onToggle={() => toggleInquiry(inquiry.id)}
                     onEdit={(id) => console.log('Edit inquiry:', id)}
-                    onDelete={(id) => console.log('Delete inquiry:', id)}
+                    onView={(id) => console.log('View inquiry:', id)}
                     onReRequest={(id) => console.log('Re-request inquiry:', id)}
+                    onApprove={(id) => console.log('Approve inquiry:', id)}
+                    action={inquiry.status === 'closed' ? 'none' : (inquiry.id === 'ET/SALES/24-25/01257' ? 'approve' : 'edit')}
                   />
                 ))
               ) : (
@@ -661,13 +728,60 @@ export default function VehicleDetailPage() {
         navigationOptions={[
           {
             label: 'Raise Dispute',
-            onClick: () => console.log('Raise Dispute'),
+            onClick: () => setShowRaiseDisputeOverlay(true),
           },
           {
             label: 'Request Part',
-            onClick: () => console.log('Request Part'),
+            onClick: () => setShowRequestPartOverlay(true),
           },
         ]}
+      />
+
+      {/* Raise Dispute Overlay */}
+      <RaiseDisputeOverlay
+        isOpen={showRaiseDisputeOverlay}
+        onClose={() => setShowRaiseDisputeOverlay(false)}
+        onConfirm={(data) => {
+          console.log('Dispute submitted:', data);
+          setShowRaiseDisputeOverlay(false);
+        }}
+        onChatWithUs={() => console.log('Open chat')}
+        orderSuggestions={orderSuggestions}
+        parts={partsOptions}
+        reasons={reasonsOptions}
+        vehicleInfo={{
+          year: vehicle.year,
+          make: vehicle.make,
+          model: vehicle.model,
+          specs: vehicle.specs,
+          plateNumber: vehicle.plateNumber,
+        }}
+        buttonText="SEND REQUEST"
+      />
+
+      {/* Request Part Overlay */}
+      <RequestPartOverlay
+        isOpen={showRequestPartOverlay}
+        onClose={() => setShowRequestPartOverlay(false)}
+        onSubmitPartNumber={(partNumber) => {
+          console.log('Part number submitted:', partNumber);
+          // Form will be shown automatically by the overlay
+        }}
+        onScanPart={() => {
+          console.log('Open scanner');
+          // Would typically open camera/scanner here
+        }}
+        onRequestManually={() => {
+          console.log('Request part manually');
+          // Form will be shown automatically by the overlay
+        }}
+        onSendRequest={(data) => {
+          console.log('Part request submitted:', data);
+          setShowRequestPartOverlay(false);
+        }}
+        onAddAnotherRequest={() => {
+          console.log('Adding another request');
+        }}
       />
 
       {/* Navigation Bar */}
