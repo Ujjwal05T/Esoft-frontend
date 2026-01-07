@@ -3,7 +3,7 @@ import Image from 'next/image';
 
 export default function Header() {
   return (
-    <div className="fixed bg-white h-[70px] left-0 top-0 w-full max-w-[440px] z-50">
+    <div className="md:hidden fixed bg-white h-[70px] left-0 top-0 w-full max-w-[440px] z-50">
       
 
       {/* Menu Bar */}

@@ -23,7 +23,7 @@ export default function FloatingActionButton({ navigationOptions = [] }: Floatin
       {/* Gradient Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-30 pointer-events-auto"
+          className="fixed inset-0 z-30 pointer-events-auto md:hidden"
           style={{
             background: 'linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 100%)'
           }}
@@ -31,7 +31,8 @@ export default function FloatingActionButton({ navigationOptions = [] }: Floatin
         />
       )}
 
-      <div className="fixed bottom-[210px] left-1/2 -translate-x-1/2 max-w-[440px] w-full z-40 pointer-events-none">
+      {/* FAB - Only visible on mobile */}
+      <div className="md:hidden fixed bottom-[210px] left-1/2 -translate-x-1/2 max-w-[440px] w-full z-40 pointer-events-none">
         <div className="relative w-full">
           <div className="absolute right-[16px] pointer-events-auto">
             {/* Navigation Options */}

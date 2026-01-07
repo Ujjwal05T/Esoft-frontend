@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import NavigationBar from '@/components/dashboard/NavigationBar';
+import Sidebar from '@/components/layout/Sidebar';
 import VehicleCard from '@/components/dashboard/VehicleCard';
 import FloatingActionButton from '@/components/dashboard/FloatingActionButton';
 import InquiryCard, { type Inquiry } from '@/components/dashboard/InquiryCard';
@@ -349,57 +350,50 @@ export default function VehicleDetailPage() {
   };
 
   return (
-    <>
-      {/* Mobile-only message for larger screens */}
-      <div className="hidden md:flex items-center justify-center min-h-screen bg-gradient-to-br from-[#f24822] to-[#2294f2]">
-        <div className="text-center p-12 bg-white rounded-2xl shadow-2xl max-w-md mx-4">
-          <div className="mb-6">
-            <svg className="w-20 h-20 mx-auto text-[#f24822]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
+    <div className="bg-[#f5f3f4] relative min-h-screen w-full overflow-x-hidden">
+      {/* Sidebar for desktop/tablet */}
+      <Sidebar />
+      
+      {/* Main content area with padding for sidebar on desktop */}
+      <div className="md:pl-[240px] lg:pl-[280px]">
+        {/* Inner container for mobile centering */}
+        <div className="max-w-[440px] md:max-w-none mx-auto md:mx-0 bg-white md:bg-[#f5f3f4]">
+          
+          {/* Header - only on mobile */}
+          <div className="md:hidden sticky top-0 w-full bg-white h-[70px] z-50 shadow-sm">
+            {/* Status Bar */}
+            <div className="h-[25px] bg-white" />
+            {/* Navigation Bar */}
+            <div className="h-[36px] flex items-start justify-between px-[16px]">
+              <button
+                onClick={() => router.back()}
+                className="w-[24px] h-[24px] flex items-center justify-center"
+              >
+                <Image
+                src="/assets/icons/arrow-back.svg"
+                alt="Back"
+                width={24}
+                height={24}
+                />
+              </button>
+
+              <h1 className="font-semibold text-[19px] text-[#E5383B] tracking-[-0.64px]">
+                Vehicle Details
+              </h1>
+
+              <button className="w-[24px] h-[24px] flex items-center justify-center">
+                <Image
+                  src="/assets/icons/search.svg"
+                  alt="Search"
+                  width={24}
+                  height={24}
+                />
+              </button>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">Mobile Only</h1>
-          <p className="text-lg text-gray-600">This site can only be viewed on mobile devices</p>
-        </div>
-      </div>
 
-      {/* Main content - only visible on mobile */}
-      <div className="md:hidden bg-[#f5f3f4] relative min-h-screen w-full max-w-[440px] mx-auto">
-      {/* Header */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] bg-white h-[70px] z-50 shadow-sm">
-        {/* Status Bar */}
-        <div className="h-[25px] bg-white" />
-        {/* Navigation Bar */}
-        <div className="h-[36px] flex items-start justify-between px-[16px]">
-          <button
-            onClick={() => router.back()}
-            className="w-[24px] h-[24px] flex items-center justify-center"
-          >
-            <Image
-            src="/assets/icons/arrow-back.svg"
-            alt="Back"
-            width={24}
-            height={24}
-            />
-          </button>
-
-          <h1 className="font-semibold text-[19px] text-[#E5383B] tracking-[-0.64px]">
-            Vehicle Details
-          </h1>
-
-          <button className="w-[24px] h-[24px] flex items-center justify-center">
-            <Image
-              src="/assets/icons/search.svg"
-              alt="Search"
-              width={24}
-              height={24}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="pt-[70px] pb-[117px] px-[16px]">
+          {/* Main Content */}
+          <div className="pt-[0px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px] bg-[#f5f3f4]">
         <div className="flex flex-col gap-[16px] w-full py-[16px]">
           {/* Vehicle Card */}
           <VehicleCard
@@ -786,7 +780,8 @@ export default function VehicleDetailPage() {
 
       {/* Navigation Bar */}
       <NavigationBar />
+        </div>
       </div>
-    </>
+    </div>
   );
 }

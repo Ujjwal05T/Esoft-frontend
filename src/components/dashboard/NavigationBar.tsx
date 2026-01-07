@@ -33,7 +33,7 @@ export default function NavigationBar() {
   ];
 
   return (
-    <div className="fixed bg-[#e8ebf2] flex gap-[10px] items-start left-0 px-[16px] py-[17px] bottom-0 w-full max-w-[440px] z-50">
+    <div className="md:hidden fixed bg-[#e8ebf2] flex gap-[10px] items-start left-0 px-[16px] py-[17px] bottom-0 w-full max-w-[440px] z-50">
       <div className="flex flex-1 gap-[35px] items-center">
         {navItems.map((item, index) => {
           const isActive = pathname.startsWith(item.href);

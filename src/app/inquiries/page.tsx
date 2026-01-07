@@ -2,6 +2,7 @@
 
 import React from 'react';
 import NavigationBar from '@/components/dashboard/NavigationBar';
+import Sidebar from '@/components/layout/Sidebar';
 
 // Rocket Icon for Coming Soon
 const RocketIcon = () => (
@@ -44,46 +45,55 @@ const RocketIcon = () => (
 
 export default function InquiriesPage() {
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-between">
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 mb-[80px]">
-        
-        {/* Animated Icon Container */}
-        <div className="mb-8 relative">
-          <div className="absolute inset-0 bg-[#e5383b] opacity-5 rounded-full blur-2xl transform scale-150"></div>
-          <RocketIcon />
-        </div>
+    <div className="min-h-screen bg-white flex flex-col justify-between overflow-x-hidden">
+      {/* Sidebar for desktop/tablet */}
+      <Sidebar />
+      
+      {/* Main content area with padding for sidebar on desktop */}
+      <div className="md:pl-[240px] lg:pl-[280px] flex-1">
+        {/* Inner container for mobile centering */}
+        <div className="max-w-[440px] md:max-w-none mx-auto md:mx-0 flex-1 flex flex-col">
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col items-center justify-center p-6 mb-[80px] md:mb-0">
+            
+            {/* Animated Icon Container */}
+            <div className="mb-8 relative">
+              <div className="absolute inset-0 bg-[#e5383b] opacity-5 rounded-full blur-2xl transform scale-150"></div>
+              <RocketIcon />
+            </div>
 
-        {/* Title */}
-        <h1 
-          className="text-[32px] font-bold text-[#1a1a1a] mb-3 text-center tracking-tight"
-          style={{ fontFamily: "'Inter', sans-serif" }}
-        >
-          Something New is<br />
-          <span className="text-[#e5383b]">Coming Soon!</span>
-        </h1>
+            {/* Title */}
+            <h1 
+              className="text-[32px] font-bold text-[#1a1a1a] mb-3 text-center tracking-tight"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              Something New is<br />
+              <span className="text-[#e5383b]">Coming Soon!</span>
+            </h1>
 
-        {/* Description */}
-        <p 
-          className="text-[16px] text-[#828282] text-center max-w-[280px] leading-relaxed"
-          style={{ fontFamily: "'Inter', sans-serif" }}
-        >
-          We are currently working on this feature to bring you a better experience.
-        </p>
+            {/* Description */}
+            <p 
+              className="text-[16px] text-[#828282] text-center max-w-[280px] leading-relaxed"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              We are currently working on this feature to bring you a better experience.
+            </p>
 
-        {/* Notify Button (Optional visual element) */}
-        <div className="mt-10">
-          <button 
-            className="px-8 py-3 bg-[#f8f8f8] text-[#4c4c4c] font-semibold rounded-full border border-[#f0f0f0] text-[14px] hover:bg-[#f0f0f0] transition-colors"
-            style={{ fontFamily: "'Inter', sans-serif" }}
-          >
-            Notify Me When Ready
-          </button>
+            {/* Notify Button (Optional visual element) */}
+            <div className="mt-10">
+              <button 
+                className="px-8 py-3 bg-[#f8f8f8] text-[#4c4c4c] font-semibold rounded-full border border-[#f0f0f0] text-[14px] hover:bg-[#f0f0f0] transition-colors"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Notify Me When Ready
+              </button>
+            </div>
+          </div>
+
+          {/* Navigation Bar */}
+          <NavigationBar />
         </div>
       </div>
-
-      {/* Navigation Bar */}
-      <NavigationBar />
     </div>
   );
 }

@@ -24,7 +24,7 @@ export default function StatusCard({
   return (
     <CardWrapper {...cardProps}>
       <div
-        className={`${bgColor} h-[155px] overflow-clip relative rounded-[9px] w-[185px]`}
+        className={`${bgColor} h-[155px] overflow-clip relative rounded-[9px] w-full`}
       >
         <div className="absolute flex items-center justify-center left-[10px] top-[25px]">
           <p className="font-semibold leading-normal text-[#f5f3f4] text-[16px] text-left tracking-[-0.64px]">
@@ -48,7 +48,7 @@ export default function StatusCard({
           </div>
         )}
         {/* Arrow Icon */}
-        <div className="absolute left-[150px] w-[32px] h-[32px] top-[112px]">
+        <div className="absolute right-[10px] w-[32px] h-[32px] bottom-[10px]">
           <Image
             src="/assets/icons/arrow-right.svg"
             alt="Go"
