@@ -42,8 +42,13 @@ export default function LoginPage() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
+      // Check for owner credentials
+      if (email === 'owner@etna.com' && password === 'owner123') {
+        window.location.href = '/owner/dashboard';
+      } else {
+        // Default to staff dashboard
+        window.location.href = '/staff/dashboard';
+      }
     }, 1500);
   };
 
@@ -138,6 +143,37 @@ export default function LoginPage() {
                 Register Now
               </Link>
             </p>
+          </div>
+        </div>
+
+        {/* Demo Credentials */}
+        <div className="mt-6 bg-[#f5f3f4] rounded-[12px] p-4">
+          <p className="text-[#2b2b2b] text-[12px] font-semibold mb-3 text-center">
+            🔐 Demo Credentials
+          </p>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('staff@etna.com');
+                setPassword('staff123');
+              }}
+              className="w-full bg-white rounded-[8px] p-3 text-left hover:bg-[#e8ebf2] transition border border-[#d4d9e3]"
+            >
+              <p className="text-[12px] font-medium text-[#2b2b2b]">👷 Staff Login</p>
+              <p className="text-[11px] text-[#99a2b6]">staff@etna.com / staff123</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('owner@etna.com');
+                setPassword('owner123');
+              }}
+              className="w-full bg-white rounded-[8px] p-3 text-left hover:bg-[#e8ebf2] transition border border-[#d4d9e3]"
+            >
+              <p className="text-[12px] font-medium text-[#2b2b2b]">👑 Owner Login</p>
+              <p className="text-[11px] text-[#99a2b6]">owner@etna.com / owner123</p>
+            </button>
           </div>
         </div>
 

@@ -28,10 +28,10 @@ export default function Dashboard() {
                 <StatusCard
                   title="Vehicles Assigned"
                   value="5"
-                  bgColor="bg-[#f24822]"
+                  bgColor="#f24822"
                   vectorSrc="/assets/vectors/vehicle-vector.svg"
                   vectorClassName="absolute h-[130px] right-0 mix-blend-color-burn top-[25px] w-[147px]"
-                  href="/vehicles"
+                  href="/staff/vehicles"
                 />
                 <StatusCard
                   title="Approved Inquiry"
@@ -41,10 +41,10 @@ export default function Dashboard() {
                       <span className="text-[32px]">/12</span>
                     </span>
                   }
-                  bgColor="bg-[#2294f2]"
+                  bgColor="#2294f2"
                   vectorSrc="/assets/vectors/inquiry-vector.svg"
                   vectorClassName="absolute right-0 mix-blend-overlay w-[109px] h-[109px] top-[46px]"
-                  href="/inquiries"
+                  href="/staff/inquiries"
                 />
               </div>
 

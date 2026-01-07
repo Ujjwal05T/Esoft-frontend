@@ -24,7 +24,8 @@ export default function StatusCard({
   return (
     <CardWrapper {...cardProps}>
       <div
-        className={`${bgColor} h-[155px] overflow-clip relative rounded-[9px] w-full`}
+        className="h-[155px] overflow-clip relative rounded-[9px] w-full"
+        style={{ backgroundColor: bgColor }}
       >
         <div className="absolute flex items-center justify-center left-[10px] top-[25px]">
           <p className="font-semibold leading-normal text-[#f5f3f4] text-[16px] text-left tracking-[-0.64px]">
@@ -36,9 +37,9 @@ export default function StatusCard({
             {value}
           </p>
         </div>
-        {/* Background Vector */}
+        {/* Background Vector - positioned to overflow 20% on the right */}
         {vectorSrc && (
-          <div className={vectorClassName}>
+          <div className={`${vectorClassName}`} style={{left: '60px'}}>
             <Image
               src={vectorSrc}
               alt=""

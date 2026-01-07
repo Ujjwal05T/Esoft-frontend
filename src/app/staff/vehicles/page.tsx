@@ -91,7 +91,7 @@ export default function VehiclesPage() {
                 {vehicles.map((vehicle) => (
                   <Link
                     key={vehicle.id}
-                    href={`/vehicles/${vehicle.id}`}
+                    href={`/staff/vehicles/${vehicle.id}`}
                     className="block cursor-pointer hover:opacity-90 transition-opacity"
                   >
                     <VehicleCard

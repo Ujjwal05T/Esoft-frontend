@@ -37,7 +37,7 @@ export default function FloatingActionButton({ navigationOptions = [] }: Floatin
           <div className="absolute right-[16px] pointer-events-auto">
             {/* Navigation Options */}
             {isOpen && navigationOptions.length > 0 && (
-              <div className="absolute bottom-[90px] right-0 flex flex-col gap-[12px] mb-[8px]">
+              <div className="absolute bottom-[90px] right-0 flex flex-col gap-[10px] mb-[8px]">
                 {navigationOptions.map((option, index) => (
                   <button
                     key={index}

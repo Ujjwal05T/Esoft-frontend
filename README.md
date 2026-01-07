@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ETNA Spares - Frontend
 
-## Getting Started
+Vehicle management system for workshop staff.
 
-First, run the development server:
+## Quick Links
+
+- 🏠 **Landing Page**: [http://localhost:3000](http://localhost:3000)
+- 🔐 **Login**: [http://localhost:3000/login](http://localhost:3000/login)
+- 📝 **Register**: [http://localhost:3000/register](http://localhost:3000/register)
+- 🎨 **Component Playground**: [http://localhost:3000/playground](http://localhost:3000/playground) ⭐
+
+### Staff Routes
+- 📊 **Dashboard**: [http://localhost:3000/staff/dashboard](http://localhost:3000/staff/dashboard)
+- 🚗 **Vehicles**: [http://localhost:3000/staff/vehicles](http://localhost:3000/staff/vehicles)
+- 📋 **Inquiries**: [http://localhost:3000/staff/inquiries](http://localhost:3000/staff/inquiries)
+
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Documentation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- 📁 [Folder Structure](./FOLDER_STRUCTURE.md) - Role-based organization
+- 🔄 [Migration Summary](./MIGRATION_SUMMARY.md) - Recent changes
+- 🎨 [Component Playground](./src/app/playground/README.md) - Testing components
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Component Playground
 
-## Learn More
+The playground is an interactive environment to test components with different:
+- Data values (vehicles, inquiries, jobs)
+- Layout configurations (with/without sidebar)
+- Role-based scenarios (staff, manager, admin)
+- Grid layouts (2, 3, 4 columns)
 
-To learn more about Next.js, take a look at the following resources:
+**Access**: Navigate to `/playground` or click the link above.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── page.tsx              # Landing page
+│   ├── login/                # Authentication
+│   ├── register/
+│   ├── playground/           # 🎨 Component testing
+│   └── staff/                # Staff role pages
+│       ├── dashboard/
+│       ├── vehicles/
+│       └── inquiries/
+│
+└── components/               # Shared components
+    ├── dashboard/
+    ├── layout/
+    ├── overlays/
+    ├── auth/
+    └── ui/
+```
 
-## Deploy on Vercel
+## Adding New Roles
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+To add a new role (e.g., admin, manager):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Create `app/[role]/` directory
+2. Add `layout.tsx` with role-specific auth
+3. Create role-specific pages
+4. Reuse components from `components/`
+5. Test in the playground
+
+See [FOLDER_STRUCTURE.md](./FOLDER_STRUCTURE.md) for details.
+
+## Tech Stack
+
+- **Framework**: Next.js 15
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Custom components (shared across roles)
+
+## Features
+
+- ✅ Role-based routing (staff, admin, manager)
+- ✅ Responsive design (mobile, tablet, desktop)
+- ✅ Component playground for testing
+- ✅ Shared component library
+- ✅ Authentication flow
+- ✅ Vehicle management
+- ✅ Parts inquiry system
+- ✅ Job card processing

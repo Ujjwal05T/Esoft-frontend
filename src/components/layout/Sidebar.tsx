@@ -18,17 +18,17 @@ export default function Sidebar() {
     {
       label: 'Dashboard',
       iconSrc: '/assets/icons/home.svg',
-      href: '/dashboard',
+      href: '/staff/dashboard',
     },
     {
       label: 'Vehicles',
       iconSrc: '/assets/icons/vehicle.svg',
-      href: '/vehicles',
+      href: '/staff/vehicles',
     },
     {
       label: 'Inquiries',
       iconSrc: '/assets/icons/inquiry.svg',
-      href: '/inquiries',
+      href: '/staff/inquiries',
     },
   ];
 
