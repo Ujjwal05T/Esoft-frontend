@@ -184,6 +184,9 @@ export default function RaiseDisputeOverlay({
   const [showPartDropdown, setShowPartDropdown] = useState(false);
   const [showReasonDropdown, setShowReasonDropdown] = useState(false);
   
+  // Validation state
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  
   // Audio state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -304,6 +307,13 @@ export default function RaiseDisputeOverlay({
 
   // Handle form submission
   const handleConfirm = () => {
+    setHasAttemptedSubmit(true);
+    
+    // Validate all required fields
+    if (!orderId.trim() || !selectedPart || !selectedReason || !remark.trim()) {
+      return; // Don't submit if validation fails
+    }
+    
     onConfirm({
       orderId,
       partName: selectedPart,
@@ -409,7 +419,11 @@ export default function RaiseDisputeOverlay({
           <div className="relative">
             <div
               className={`border rounded-[8px] px-[16px] py-[14px] transition-colors ${
-                orderId ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                hasAttemptedSubmit && !orderId.trim()
+                  ? 'border-[#e5383b] bg-[#ffe0e0]'
+                  : orderId
+                  ? 'border-[#e5383b]'
+                  : 'border-[#d3d3d3]'
               }`}
             >
               {orderId && (
@@ -430,10 +444,20 @@ export default function RaiseDisputeOverlay({
                 onFocus={() => setShowOrderSuggestions(orderId.length > 0)}
                 onBlur={() => setTimeout(() => setShowOrderSuggestions(false), 200)}
                 placeholder={orderId ? '' : 'Order ID'}
-                className="w-full outline-none text-[15px] text-black placeholder:text-[#828282]"
+                className={`w-full outline-none text-[15px] text-black placeholder:text-[#828282] ${
+                  hasAttemptedSubmit && !orderId.trim() ? 'bg-transparent' : ''
+                }`}
                 style={{ fontFamily: "'Inter', sans-serif" }}
               />
             </div>
+            {hasAttemptedSubmit && !orderId.trim() && (
+              <p
+                className="text-[12px] text-[#e5383b] mt-[4px]"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Please enter order ID
+              </p>
+            )}
 
             {/* Order Suggestions Dropdown */}
             {showOrderSuggestions && filteredSuggestions.length > 0 && (
@@ -473,7 +497,11 @@ export default function RaiseDisputeOverlay({
                 setShowReasonDropdown(false);
               }}
               className={`w-full border rounded-[8px] px-[16px] py-[14px] flex items-center justify-between transition-colors ${
-                selectedPart ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                hasAttemptedSubmit && !selectedPart
+                  ? 'border-[#e5383b] bg-[#ffe0e0]'
+                  : selectedPart
+                  ? 'border-[#e5383b]'
+                  : 'border-[#d3d3d3]'
               }`}
             >
               {selectedPart && (
@@ -492,6 +520,14 @@ export default function RaiseDisputeOverlay({
               </span>
               <ChevronDownIcon className={showPartDropdown ? 'rotate-180 transition-transform' : 'transition-transform'} />
             </button>
+            {hasAttemptedSubmit && !selectedPart && (
+              <p
+                className="text-[12px] text-[#e5383b] mt-[4px]"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Please select a part
+              </p>
+            )}
 
             {/* Parts Dropdown */}
             {showPartDropdown && parts.length > 0 && (
@@ -525,7 +561,11 @@ export default function RaiseDisputeOverlay({
                 setShowPartDropdown(false);
               }}
               className={`w-full border rounded-[8px] px-[16px] py-[14px] flex items-center justify-between transition-colors ${
-                selectedReason ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                hasAttemptedSubmit && !selectedReason
+                  ? 'border-[#e5383b] bg-[#ffe0e0]'
+                  : selectedReason
+                  ? 'border-[#e5383b]'
+                  : 'border-[#d3d3d3]'
               }`}
             >
               {selectedReason && (
@@ -544,6 +584,14 @@ export default function RaiseDisputeOverlay({
               </span>
               <ChevronDownIcon className={showReasonDropdown ? 'rotate-180 transition-transform' : 'transition-transform'} />
             </button>
+            {hasAttemptedSubmit && !selectedReason && (
+              <p
+                className="text-[12px] text-[#e5383b] mt-[4px]"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Please select a reason
+              </p>
+            )}
 
             {/* Reasons Dropdown */}
             {showReasonDropdown && reasons.length > 0 && (
@@ -573,7 +621,11 @@ export default function RaiseDisputeOverlay({
           <div className="relative">
             <div
               className={`border rounded-[8px] px-[16px] py-[14px] transition-colors ${
-                remark ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                hasAttemptedSubmit && !remark.trim()
+                  ? 'border-[#e5383b] bg-[#ffe0e0]'
+                  : remark
+                  ? 'border-[#e5383b]'
+                  : 'border-[#d3d3d3]'
               }`}
             >
               {remark && (
@@ -589,10 +641,20 @@ export default function RaiseDisputeOverlay({
                 onChange={(e) => setRemark(e.target.value)}
                 placeholder={remark ? '' : 'Remark'}
                 rows={2}
-                className="w-full outline-none text-[15px] text-black placeholder:text-[#828282] resize-none"
+                className={`w-full outline-none text-[15px] text-black placeholder:text-[#828282] resize-none ${
+                  hasAttemptedSubmit && !remark.trim() ? 'bg-transparent' : ''
+                }`}
                 style={{ fontFamily: "'Inter', sans-serif" }}
               />
             </div>
+            {hasAttemptedSubmit && !remark.trim() && (
+              <p
+                className="text-[12px] text-[#e5383b] mt-[4px]"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Please add a remark
+              </p>
+            )}
           </div>
 
           {/* Audio Section */}

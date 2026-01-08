@@ -14,23 +14,38 @@ interface NavItem {
 export default function Sidebar() {
   const pathname = usePathname();
 
+  // Detect role from pathname
+  const getRole = (): 'owner' | 'staff' | 'admin' => {
+    if (pathname.startsWith('/owner')) return 'owner';
+    if (pathname.startsWith('/admin')) return 'admin';
+    return 'staff';
+  };
+
+  const role = getRole();
+
+  // Generate nav items based on role
   const navItems: NavItem[] = [
     {
       label: 'Dashboard',
       iconSrc: '/assets/icons/home.svg',
-      href: '/staff/dashboard',
+      href: `/${role}/dashboard`,
     },
     {
       label: 'Vehicles',
       iconSrc: '/assets/icons/vehicle.svg',
-      href: '/staff/vehicles',
+      href: `/${role}/vehicles`,
     },
+    (role === 'owner' ? {
+      label: 'Orders',
+      iconSrc: '/assets/icons/order.svg',
+      href: `/${role}/orders`,
+    } : undefined),
     {
       label: 'Inquiries',
       iconSrc: '/assets/icons/inquiry.svg',
-      href: '/staff/inquiries',
+      href: `/${role}/inquiries`,
     },
-  ];
+  ].filter((item) => item !== undefined);
 
   return (
     <div className="hidden md:flex fixed left-0 top-0 h-screen w-[240px] lg:w-[280px] bg-white border-r border-[#e5e5e5] flex-col z-50">

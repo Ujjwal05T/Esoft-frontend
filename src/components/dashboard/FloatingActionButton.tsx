@@ -32,7 +32,7 @@ export default function FloatingActionButton({ navigationOptions = [] }: Floatin
       )}
 
       {/* FAB - Only visible on mobile */}
-      <div className="md:hidden fixed bottom-[210px] left-1/2 -translate-x-1/2 max-w-[440px] w-full z-40 pointer-events-none">
+      <div className="md:hidden fixed bottom-[190px] left-1/2 -translate-x-1/2 max-w-[440px] w-full z-40 pointer-events-none">
         <div className="relative w-full">
           <div className="absolute right-[16px] pointer-events-auto">
             {/* Navigation Options */}

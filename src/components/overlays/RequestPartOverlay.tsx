@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import CameraScannerOverlay from './CameraScannerOverlay';
 
 interface RequestPartOverlayProps {
   isOpen: boolean;
@@ -190,6 +191,9 @@ export default function RequestPartOverlay({
   // View state
   const [currentView, setCurrentView] = useState<'search' | 'form'>('search');
   
+  // Camera scanner state
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
+  
   // Search view state
   const [partNumber, setPartNumber] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -242,6 +246,32 @@ export default function RequestPartOverlay({
     } else {
       onClose();
     }
+  };
+
+  // Handle camera capture
+  const handleCameraCapture = (imageSrc: string) => {
+    // Convert base64 to blob/file for the images array
+    fetch(imageSrc)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], 'scanned-part.jpg', { type: 'image/jpeg' });
+        const newImages = [...images];
+        newImages[0] = file;
+        setImages(newImages);
+        
+        const newUrls = [...imageUrls];
+        if (imageUrls[0]) {
+          URL.revokeObjectURL(imageUrls[0]);
+        }
+        newUrls[0] = imageSrc;
+        setImageUrls(newUrls);
+      });
+    
+    // Set remark about scanned part
+    setRemark('Part scanned - processing image...');
+    // Transition to form view
+    setCurrentView('form');
+    onScanPart();
   };
 
   // Audio recording functions
@@ -425,6 +455,7 @@ export default function RequestPartOverlay({
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-[51] flex items-end justify-center">
       {/* Backdrop */}
       <div
@@ -434,7 +465,7 @@ export default function RequestPartOverlay({
 
       {/* Bottom Sheet */}
       <div
-        className="relative w-full max-w-[440px] bg-white rounded-t-[24px] max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-[840px] bg-white rounded-t-[24px] max-h-[90vh] overflow-y-auto"
         style={{
           boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.15)',
         }}
@@ -461,10 +492,10 @@ export default function RequestPartOverlay({
             </h2>
 
             {/* Part Number Input Row */}
-            <div className="flex gap-[10px] mb-[22px]">
+            <div className="flex gap-[8px] mb-[20px]">
               {/* Part Number Input */}
               <div
-                className={`flex-1 flex items-center border rounded-[12px] px-[12px] py-[10px] transition-colors ${
+                className={`flex-1 min-w-0 flex items-center border rounded-[12px] px-[10px] sm:px-[12px] py-[8px] sm:py-[10px] transition-colors ${
                   isFocused || partNumber ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
                 }`}
               >
@@ -476,14 +507,14 @@ export default function RequestPartOverlay({
                   onBlur={() => setIsFocused(false)}
                   onKeyPress={handleKeyPress}
                   placeholder="90915-10010"
-                  className={`flex-1 min-w-0 outline-none font-bold text-[16px] placeholder:text-[#c4c4c4] ${
+                  className={`flex-1 min-w-0 outline-none font-bold text-[14px] sm:text-[16px] placeholder:text-[#c4c4c4] ${
                     partNumber ? 'text-[#e5383b]' : 'text-black'
                   }`}
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 />
                 <button
                   onClick={handleSubmitPartNumber}
-                  className={`w-[40px] h-[40px] ${partNumber ? 'bg-[#e5383b]' : 'bg-[#828282]'} text-white rounded-full flex items-center justify-center hover:opacity-90 transition-colors ml-[8px] flex-shrink-0`}
+                  className={`w-[36px] h-[36px] sm:w-[40px] sm:h-[40px] ${partNumber ? 'bg-[#e5383b]' : 'bg-[#828282]'} text-white rounded-full flex items-center justify-center hover:opacity-90 transition-colors ml-[6px] sm:ml-[8px] flex-shrink-0`}
                 >
                   <ArrowRightIcon color={'#ffffff'} />
                 </button>
@@ -491,15 +522,15 @@ export default function RequestPartOverlay({
 
               {/* Scan Part Button */}
               <button
-                onClick={onScanPart}
-                className="flex items-center gap-[6px] bg-[#e5383b] text-white px-[12px] py-[12px] rounded-[12px] hover:bg-[#c82d30] transition-colors flex-shrink-0"
+                onClick={() => setShowCameraScanner(true)}
+                className="flex items-center justify-center gap-[4px] sm:gap-[6px] bg-[#e5383b] text-white px-[10px] sm:px-[12px] py-[10px] sm:py-[12px] rounded-[12px] hover:bg-[#c82d30] transition-colors flex-shrink-0"
               >
                 <QRScanIcon />
                 <span
-                  className="font-semibold text-[14px] whitespace-nowrap"
+                  className="font-semibold text-[12px] sm:text-[14px] whitespace-nowrap hidden sm:inline"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
-                  Scan Part
+                  Scan
                 </span>
               </button>
             </div>
@@ -874,5 +905,13 @@ export default function RequestPartOverlay({
         )}
       </div>
     </div>
+
+      {/* Camera Scanner Overlay */}
+      <CameraScannerOverlay
+        isOpen={showCameraScanner}
+        onClose={() => setShowCameraScanner(false)}
+        onCapture={handleCameraCapture}
+      />
+    </>
   );
 }

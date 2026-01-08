@@ -39,7 +39,7 @@ export default function StatusCard({
         </div>
         {/* Background Vector - positioned to overflow 20% on the right */}
         {vectorSrc && (
-          <div className={`${vectorClassName}`} style={{left: '60px'}}>
+          <div className={`${vectorClassName}`} style={{left: '70px'}}>
             <Image
               src={vectorSrc}
               alt=""

@@ -534,11 +534,11 @@ export default function VehicleDetailPage() {
         <div className="max-w-[440px] md:max-w-none mx-auto md:mx-0 bg-white md:bg-[#f5f3f4]">
           
           {/* Header - only on mobile */}
-          <div className="md:hidden sticky top-0 w-full bg-white h-[70px] z-50 shadow-sm">
+          <div className="md:hidden sticky top-0 w-full bg-white h-[55px] z-50 shadow-sm">
             {/* Status Bar */}
-            <div className="h-[25px] bg-white" />
+            <div className="h-[15px] bg-white" />
             {/* Navigation Bar */}
-            <div className="h-[36px] flex items-start justify-between px-[16px]">
+            <div className="h-[24px] flex items-start justify-between px-[16px]">
               <button
                 onClick={() => router.back()}
                 className="w-[24px] h-[24px] flex items-center justify-center"

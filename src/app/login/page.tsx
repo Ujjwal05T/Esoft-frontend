@@ -149,7 +149,7 @@ export default function LoginPage() {
         {/* Demo Credentials */}
         <div className="mt-6 bg-[#f5f3f4] rounded-[12px] p-4">
           <p className="text-[#2b2b2b] text-[12px] font-semibold mb-3 text-center">
-            🔐 Demo Credentials
+             Demo Credentials
           </p>
           <div className="space-y-2">
             <button
@@ -160,7 +160,7 @@ export default function LoginPage() {
               }}
               className="w-full bg-white rounded-[8px] p-3 text-left hover:bg-[#e8ebf2] transition border border-[#d4d9e3]"
             >
-              <p className="text-[12px] font-medium text-[#2b2b2b]">👷 Staff Login</p>
+              <p className="text-[12px] font-medium text-[#2b2b2b]"> Staff Login</p>
               <p className="text-[11px] text-[#99a2b6]">staff@etna.com / staff123</p>
             </button>
             <button
@@ -171,7 +171,7 @@ export default function LoginPage() {
               }}
               className="w-full bg-white rounded-[8px] p-3 text-left hover:bg-[#e8ebf2] transition border border-[#d4d9e3]"
             >
-              <p className="text-[12px] font-medium text-[#2b2b2b]">👑 Owner Login</p>
+              <p className="text-[12px] font-medium text-[#2b2b2b]"> Owner Login</p>
               <p className="text-[11px] text-[#99a2b6]">owner@etna.com / owner123</p>
             </button>
           </div>

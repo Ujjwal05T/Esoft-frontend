@@ -10,13 +10,13 @@ const brandLogos = [
   { name: 'TWO', src: '/assets/logos/two-logo.svg' },
 ];
 
-export default function RaisePartsCard() {
+export default function RaisePartsCard0({text1 = 'Raise Parts', text2 = 'Inquiry' }: {text1: string, text2: string}) {
   return (
     <div className="relative w-full h-[167px] bg-[#e5383b] rounded-[8px] overflow-clip">
       {/* Title */}
       <div className="absolute left-[16px] top-[11px] z-10">
         <p className="font-bold leading-normal text-[22px] text-white tracking-[-0.88px]">
-          Raise Parts<br/>Inquiry
+          {text1}<br/>{text2}
         </p>
       </div>
 

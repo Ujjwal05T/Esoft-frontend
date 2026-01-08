@@ -8,6 +8,7 @@ import NavigationBar from '@/components/dashboard/NavigationBar';
 import Sidebar from '@/components/layout/Sidebar';
 import VehicleCard from '@/components/dashboard/VehicleCard';
 import FloatingActionButton from '@/components/dashboard/FloatingActionButton';
+import AddVehicleOverlay from '@/components/overlays/AddVehicleOverlay';
 
 // Mock data for Active Vehicles (Default Variant)
 const activeVehicles = [
@@ -63,12 +64,25 @@ const activeVehicles = [
 ];
 
 export default function VehiclesPage() {
-  const [activeTab, setActiveTab] = useState<'all' | 'requests'>('requests');
+  const [activeTab, setActiveTab] = useState<'all' | 'requests'>('all');
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
 
   // In 'all' tab, show everything. In 'requests' tab, show only items with type 'request'
   const displayVehicles = activeTab === 'all' 
     ? [...activeVehicles   ] 
     : activeVehicles.filter(vehicle => vehicle.type === 'request');
+
+  const handleSubmitRequest = (data: { plateNumber: string; ownerName: string; contactNumber: string; odometerReading: string; observations: string }) => {
+    console.log('Vehicle request submitted:', data);
+    // In real app, send data to API
+    setShowAddVehicle(false);
+  };
+
+  const handleAddManually = () => {
+    console.log('Add vehicle manually');
+    setShowAddVehicle(false);
+    // Navigate to manual add form
+  };
 
   return (
     <div className="bg-white relative min-h-screen w-full overflow-x-hidden">
@@ -83,8 +97,8 @@ export default function VehiclesPage() {
           <Header />
 
           {/* Main Content Container */}
-          <div className="pt-[70px] md:pt-[24px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px]">
-            <div className="flex flex-col gap-[24px] w-full py-[16px]">
+          <div className="pt-[50px] md:pt-[24px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px]">
+            <div className="flex flex-col gap-[24px] w-full py-[13px]">
               {/* Filter Section */}
               <div className="flex items-center justify-between ">
                 {/* Toggle Switch */}
@@ -153,7 +167,7 @@ export default function VehiclesPage() {
             navigationOptions={[
               {
                 label: 'Add new vehicle',
-                onClick: () => console.log('Add new vehicle'),
+                onClick: () => setShowAddVehicle(true),
               },
             ]}
           />
@@ -162,6 +176,15 @@ export default function VehiclesPage() {
           <NavigationBar role='owner' />
         </div>
       </div>
+
+      {/* Add Vehicle Overlay */}
+      <AddVehicleOverlay
+        isOpen={showAddVehicle}
+        onClose={() => setShowAddVehicle(false)}
+        onSubmitRequest={handleSubmitRequest}
+        onAddManually={handleAddManually}
+      />
     </div>
   );
 }
+

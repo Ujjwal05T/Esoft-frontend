@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '@/components/dashboard/Header';
@@ -7,6 +8,7 @@ import NavigationBar from '@/components/dashboard/NavigationBar';
 import Sidebar from '@/components/layout/Sidebar';
 import VehicleCard from '@/components/dashboard/VehicleCard';
 import FloatingActionButton from '@/components/dashboard/FloatingActionButton';
+import AddVehicleOverlay from '@/components/overlays/AddVehicleOverlay';
 
 // Mock vehicle data
 const vehicles = [
@@ -68,6 +70,20 @@ const vehicles = [
 ];
 
 export default function VehiclesPage() {
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
+
+  const handleSubmitRequest = (data: { plateNumber: string; ownerName: string; contactNumber: string; odometerReading: string; observations: string }) => {
+    console.log('Vehicle request submitted:', data);
+    // In real app, send data to API
+    setShowAddVehicle(false);
+  };
+
+  const handleAddManually = () => {
+    console.log('Add vehicle manually');
+    setShowAddVehicle(false);
+    // Navigate to manual add form
+  };
+
   return (
     <div className="bg-white relative min-h-screen w-full overflow-x-hidden">
       {/* Sidebar for desktop/tablet */}
@@ -81,7 +97,7 @@ export default function VehiclesPage() {
           <Header />
 
           {/* Main Content Container */}
-          <div className="pt-[70px] md:pt-[24px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px]">
+          <div className="pt-[50px] md:pt-[24px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px]">
             <div className="flex flex-col gap-[24px] w-full py-[16px]">
               {/* Search and Filter Section */}
               
@@ -114,7 +130,7 @@ export default function VehiclesPage() {
             navigationOptions={[
               {
                 label: 'Add new vehicle',
-                onClick: () => console.log('Add new vehicle'),
+                onClick: () => setShowAddVehicle(true),
               },
             ]}
           />
@@ -123,6 +139,15 @@ export default function VehiclesPage() {
           <NavigationBar />
         </div>
       </div>
+
+      {/* Add Vehicle Overlay */}
+      <AddVehicleOverlay
+        isOpen={showAddVehicle}
+        onClose={() => setShowAddVehicle(false)}
+        onSubmitRequest={handleSubmitRequest}
+        onAddManually={handleAddManually}
+      />
     </div>
   );
 }
+

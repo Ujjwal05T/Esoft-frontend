@@ -21,7 +21,7 @@ export default function Dashboard() {
           <Header />
 
           {/* Main Content Container */}
-          <div className="pt-[70px] md:pt-[24px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px]">
+          <div className="pt-[50px] md:pt-[24px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px]">
             <div className="flex flex-col gap-[24px] w-full py-[16px]">
               {/* Status Cards Row - 2 columns on all screens */}
               <div className="grid grid-cols-2 gap-[10px] w-full">
@@ -52,7 +52,7 @@ export default function Dashboard() {
               <AddVehicleCard />
 
               {/* Raise Parts Inquiry Card */}
-              <RaisePartsCard />
+              <RaisePartsCard text1='Raise Parts' text2='Inquiry' />
 
               {/* Jobs Card */}
               <JobsCard jobCount={5} />
