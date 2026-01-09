@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import CameraScannerOverlay from './CameraScannerOverlay';
+import SuccessOverlay from './SuccessOverlay';
 
 interface RequestPartOverlayProps {
   isOpen: boolean;
@@ -371,6 +372,9 @@ export default function RequestPartOverlay({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Success overlay state
+  const [showSuccess, setShowSuccess] = useState(false);
+
   const handleSendRequest = () => {
     setHasAttemptedSubmit(true);
     
@@ -389,6 +393,14 @@ export default function RequestPartOverlay({
         images: images.filter((img): img is File => img !== null),
       });
     }
+    
+    // Show success overlay
+    setShowSuccess(true);
+  };
+
+  const handleSuccessClose = () => {
+    setShowSuccess(false);
+    onClose();
   };
 
   const handleAddAnother = () => {
@@ -911,6 +923,14 @@ export default function RequestPartOverlay({
         isOpen={showCameraScanner}
         onClose={() => setShowCameraScanner(false)}
         onCapture={handleCameraCapture}
+      />
+
+      {/* Success Overlay */}
+      <SuccessOverlay
+        isOpen={showSuccess}
+        onClose={handleSuccessClose}
+        message="REQUEST SENT"
+        autoCloseDelay={2000}
       />
     </>
   );

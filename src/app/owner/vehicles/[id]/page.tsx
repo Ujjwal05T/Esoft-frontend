@@ -11,6 +11,10 @@ import InquiryCard, { type Inquiry } from '@/components/dashboard/InquiryCard';
 import DisputeCard, { type Dispute } from '@/components/dashboard/DisputeCard';
 import RaiseDisputeOverlay from '@/components/overlays/RaiseDisputeOverlay';
 import RequestPartOverlay from '@/components/overlays/RequestPartOverlay';
+import EstimationOverlay from '@/components/overlays/EstimationOverlay';
+import NewJobCardOverlay from '@/components/overlays/NewJobCardOverlay';
+import OrderCard, { type Order } from '@/components/dashboard/OrderCard';
+import QuoteCard, { type Quote } from '@/components/dashboard/QuoteCard';
 
 // Mock data for Raise Dispute overlay
 const orderSuggestions = [
@@ -34,6 +38,159 @@ const reasonsOptions = [
   { id: '3', name: 'Quality Issue' },
   { id: '4', name: 'Missing Parts' },
   { id: '5', name: 'Defective Part' },
+];
+
+// Mock data for Orders
+const mockOrders: Order[] = [
+  {
+    id: '1',
+    vehicleName: 'Toyota Crysta',
+    plateNumber: 'MP09-GP4567',
+    orderId: 'ET/ORD/24-25/01255',
+    placedDate: '5 dec 2025',
+    deliveryDate: '12 dec 2025',
+    totalAmount: 2750.50,
+    status: 'in-process',
+    orderedParts: [
+      { id: '1', name: 'Brake Pad Set (Front)', brand: 'Bosch OEM', price: 500, quantity: 2 },
+      { id: '2', name: 'Oil Filter (Synthetic)', brand: 'Aftra Modval', price: 1650.50, quantity: 4 },
+      { id: '3', name: 'Wiper Blade - Driver Side', brand: 'Bosch OEM', price: 600, quantity: 1 },
+      { id: '4', name: 'Air Filter', brand: 'K&N', price: 850, quantity: 1 },
+      { id: '5', name: 'Spark Plug Set', brand: 'NGK', price: 400, quantity: 4 },
+      { id: '6', name: 'Coolant', brand: 'Castrol', price: 350, quantity: 2 },
+      { id: '7', name: 'Brake Fluid', brand: 'Motul', price: 280, quantity: 1 },
+      { id: '8', name: 'Engine Oil 5W-30', brand: 'Shell', price: 1200, quantity: 2 },
+      { id: '9', name: 'Cabin Filter', brand: 'Mann', price: 450, quantity: 1 },
+      { id: '10', name: 'Transmission Oil', brand: 'Castrol', price: 680, quantity: 1 },
+    ],
+  },
+  {
+    id: '2',
+    vehicleName: 'Toyota Crysta',
+    plateNumber: 'MP09-GP4567',
+    orderId: 'ET/ORD/24-25/01256',
+    placedDate: '3 dec 2025',
+    deliveryDate: '12 dec 2025',
+    totalAmount: 2750.50,
+    status: 'shipped',
+    orderedParts: [
+      { id: '1', name: 'Brake Pad Set (Front)', brand: 'Bosch OEM', price: 500, quantity: 2 },
+      { id: '2', name: 'Oil Filter (Synthetic)', brand: 'Aftra Modval', price: 1650.50, quantity: 4 },
+      { id: '3', name: 'Wiper Blade - Driver Side', brand: 'Bosch OEM', price: 600, quantity: 1 },
+    ],
+  },
+  {
+    id: '3',
+    vehicleName: 'Toyota Crysta',
+    plateNumber: 'MP09-GP4567',
+    orderId: 'ET/ORD/24-25/01244',
+    placedDate: '1 dec 2025',
+    deliveryDate: '12 dec 2025',
+    totalAmount: 2750.50,
+    status: 'delivered',
+    orderedParts: [
+      { id: '1', name: 'Brake Pad Set (Front)', brand: 'Bosch OEM', price: 500, quantity: 2 },
+      { id: '2', name: 'Oil Filter (Synthetic)', brand: 'Aftra Modval', price: 1650.50, quantity: 4 },
+      { id: '3', name: 'Wiper Blade - Driver Side', brand: 'Bosch OEM', price: 600, quantity: 1 },
+    ],
+  },
+];
+
+// Mock data for Quotes
+const mockVehicleQuotes: Quote[] = [
+  {
+    id: 'quote-v1',
+    vehicleName: 'Toyota Crysta',
+    plateNumber: 'MP09-GP4567',
+    quoteId: 'ET/QUOTE/24-25/01255',
+    submittedDate: '5 dec 2025',
+    status: 'pending_review',
+    estimatedTotal: 920.82,
+    items: [
+      {
+        id: 'vqi-1',
+        itemName: 'Brake Pad Set (Front)',
+        brand: 'OEM',
+        mrp: 750.50,
+        price: 500.00,
+        quantity: 2,
+        isAvailable: true,
+      },
+      {
+        id: 'vqi-2',
+        itemName: 'Wiper Blade',
+        brand: 'OEM',
+        mrp: 1200.70,
+        price: 899.00,
+        quantity: 2,
+        isAvailable: true,
+      },
+      {
+        id: 'vqi-3',
+        itemName: 'Brake Pad Set (Rear)',
+        brand: 'OEM',
+        price: 0,
+        quantity: 2,
+        isAvailable: false,
+      },
+      {
+        id: 'vqi-4',
+        itemName: 'Wiper Blade - Driver side',
+        brand: 'OEM',
+        price: 0,
+        quantity: 2,
+        isAvailable: false,
+      },
+    ],
+  },
+  {
+    id: 'quote-v2',
+    vehicleName: 'Toyota Crysta',
+    plateNumber: 'MP09-GP4567',
+    quoteId: 'ET/QUOTE/24-25/01256',
+    submittedDate: '3 dec 2025',
+    status: 'accepted',
+    estimatedTotal: 1520.50,
+    items: [
+      {
+        id: 'vqi-5',
+        itemName: 'Oil Filter (Synthetic)',
+        brand: 'Aftra Modval',
+        mrp: 1800.00,
+        price: 1520.50,
+        quantity: 4,
+        isAvailable: true,
+      },
+    ],
+  },
+  {
+    id: 'quote-v3',
+    vehicleName: 'Toyota Crysta',
+    plateNumber: 'MP09-GP4567',
+    quoteId: 'ET/QUOTE/24-25/01257',
+    submittedDate: '1 dec 2025',
+    status: 'pending_review',
+    estimatedTotal: 2350.00,
+    items: [
+      {
+        id: 'vqi-6',
+        itemName: 'AC Compressor',
+        brand: 'Denso',
+        mrp: 2800.00,
+        price: 2350.00,
+        quantity: 1,
+        isAvailable: true,
+      },
+      {
+        id: 'vqi-7',
+        itemName: 'AC Condenser',
+        brand: 'Denso',
+        price: 0,
+        quantity: 1,
+        isAvailable: false,
+      },
+    ],
+  },
 ];
 
 // Mock vehicle data - same as in vehicles page
@@ -504,6 +661,9 @@ export default function VehicleDetailPage() {
   }>({});
   const [showRaiseDisputeOverlay, setShowRaiseDisputeOverlay] = useState(false);
   const [showRequestPartOverlay, setShowRequestPartOverlay] = useState(false);
+  const [showEstimationOverlay, setShowEstimationOverlay] = useState(false);
+  const [showNewJobCardOverlay, setShowNewJobCardOverlay] = useState(false);
+  const [expandedQuotes, setExpandedQuotes] = useState<{ [key: string]: boolean }>({});
 
   if (!vehicle) {
     return <div>Vehicle not found</div>;
@@ -520,6 +680,13 @@ export default function VehicleDetailPage() {
     setExpandedInquiries((prev) => ({
       ...prev,
       [inquiryId]: !prev[inquiryId],
+    }));
+  };
+
+  const toggleQuote = (quoteId: string) => {
+    setExpandedQuotes((prev) => ({
+      ...prev,
+      [quoteId]: !prev[quoteId],
     }));
   };
 
@@ -858,21 +1025,45 @@ export default function VehicleDetailPage() {
             </div>
           )}
 
-          {/* Quotes Tab Content */}
-          {activeTab === 'quotes' && (
-            <div className="bg-white rounded-[12px] p-[16px]">
-              <p className="text-[14px] text-[#99a2b6] text-center">
-                No quotes available
-              </p>
-            </div>
-          )}
 
           {/* Orders Tab Content */}
           {activeTab === 'orders' && (
-            <div className="bg-white rounded-[12px] p-[16px]">
-              <p className="text-[14px] text-[#99a2b6] text-center">
-                No orders available
-              </p>
+            <div className="rounded-[12px] ">
+              <div className='space-y-4'>
+                {mockOrders.map((order: Order) => (
+                  <OrderCard key={order.id} 
+                   order={order}
+                   defaultExpanded={false}
+                   onTrackOrder={(orderId: string) => console.log('Track order:', orderId)}
+                   onDownloadInvoice={(orderId: string) => console.log('Download invoice:', orderId)} 
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quotes Tab Content */}
+          {activeTab === 'quotes' && (
+            <div className="flex flex-col gap-[12px]">
+              {mockVehicleQuotes.length > 0 ? (
+                mockVehicleQuotes.map((quote: Quote) => (
+                  <QuoteCard
+                    key={quote.id}
+                    quote={quote}
+                    isExpanded={expandedQuotes[quote.id] || false}
+                    onToggle={() => toggleQuote(quote.id)}
+                    showNumberPlate={false}
+                    onAccept={(id) => console.log('Accept quote:', id)}
+                    onView={(id) => console.log('View quote:', id)}
+                  />
+                ))
+              ) : (
+                <div className="bg-white rounded-[12px] p-[16px]">
+                  <p className="text-[14px] text-[#99a2b6] text-center">
+                    No quotes found for this vehicle
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -934,11 +1125,11 @@ export default function VehicleDetailPage() {
         navigationOptions={[
          {
             label: 'Generate Estimate',
-            onClick: () => console.log('Generate estimate clicked'),
+            onClick: () => setShowEstimationOverlay(true),
           },
           {
             label: 'Create New Job',
-            onClick: () => console.log('Create new job clicked'),
+            onClick: () => setShowNewJobCardOverlay(true),
           },
           {
             label: 'Raise Dispute',
@@ -958,7 +1149,7 @@ export default function VehicleDetailPage() {
         onClose={() => setShowRaiseDisputeOverlay(false)}
         onConfirm={(data) => {
           console.log('Dispute submitted:', data);
-          setShowRaiseDisputeOverlay(false);
+          // setShowRaiseDisputeOverlay(false);
         }}
         onChatWithUs={() => console.log('Open chat')}
         orderSuggestions={orderSuggestions}
@@ -996,6 +1187,37 @@ export default function VehicleDetailPage() {
         }}
         onAddAnotherRequest={() => {
           console.log('Adding another request');
+        }}
+      />
+
+      {/* Estimation Overlay */}
+      <EstimationOverlay
+        isOpen={showEstimationOverlay}
+        onClose={() => setShowEstimationOverlay(false)}
+        onReviewEstimate={(data) => {
+          console.log('Estimation data:', data);
+          // Don't close - let the overlay handle navigation to review view
+        }}
+        onGeneratePDF={(data) => {
+          console.log('Generate PDF with data:', data);
+          // setShowEstimationOverlay(false);
+        }}
+        vehicleInfo={{
+          plateNumber: vehicle.plateNumber,
+          year: vehicle.year,
+          make: vehicle.make,
+          model: vehicle.model,
+          specs: vehicle.specs,
+        }}
+      />
+
+      {/* New Job Card Overlay */}
+      <NewJobCardOverlay
+        isOpen={showNewJobCardOverlay}
+        onClose={() => setShowNewJobCardOverlay(false)}
+        onAddJob={(data) => {
+          console.log('New job created:', data);
+          setShowNewJobCardOverlay(false);
         }}
       />
 

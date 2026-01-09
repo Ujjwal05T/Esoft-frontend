@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import SuccessOverlay from './SuccessOverlay';
 
 // Types
 interface OrderSuggestion {
@@ -305,6 +306,9 @@ export default function RaiseDisputeOverlay({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Success overlay state
+  const [showSuccess, setShowSuccess] = useState(false);
+
   // Handle form submission
   const handleConfirm = () => {
     setHasAttemptedSubmit(true);
@@ -322,7 +326,11 @@ export default function RaiseDisputeOverlay({
       audioBlob: audioBlob || undefined,
       images: images.filter((img): img is File => img !== null),
     });
+    
+    // Show success overlay
+    setShowSuccess(true);
   };
+
 
   // Audio ended handler
   useEffect(() => {
@@ -330,6 +338,16 @@ export default function RaiseDisputeOverlay({
       audioRef.current.onended = () => setIsPlaying(false);
     }
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+        onClose();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -349,6 +367,7 @@ export default function RaiseDisputeOverlay({
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-51 flex items-end justify-center">
       {/* Backdrop */}
       <div
@@ -779,7 +798,7 @@ export default function RaiseDisputeOverlay({
               className="w-full py-[12px] flex items-center justify-center"
             >
               <span
-                className="text-[#289d27] font-semibold text-[14px] uppercase tracking-[0.5px]"
+                className="text-[#E5383B] font-semibold text-[14px] uppercase tracking-[0.5px]"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 CHAT WITH US
@@ -787,7 +806,98 @@ export default function RaiseDisputeOverlay({
             </button>
           )}
         </div>
+
+        {/* ========== SUCCESS VIEW (inside overlay) ========== */}
+          {showSuccess && (
+            <div 
+              className="absolute inset-0 bg-[#e5383b] rounded-t-[16px] flex items-center justify-center"
+              style={{
+                animation: 'successFadeIn 0.3s ease-out forwards',
+              }}
+            >
+              {/* Checkmark Icon */}
+              <div className="flex flex-col items-center justify-center">
+                <div 
+                  className="mb-[24px] w-[61px] h-[61px] bg-white rounded-full flex items-center justify-center shadow-lg"
+                  style={{
+                    animation: 'successBounce 0.5s ease-out 0.1s forwards',
+                    opacity: 0,
+                    transform: 'scale(0)',
+                  }}
+                >
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 32 32"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M8 16L14 22L24 10"
+                      stroke="#e5383b"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                
+                {/* Message Text */}
+                <p
+                  className="text-white text-[20px] font-medium tracking-[1px] text-center"
+                  style={{ 
+                    fontFamily: "'Inter', sans-serif",
+                    animation: 'successTextFade 0.3s ease-out 0.2s forwards',
+                    opacity: 0,
+                  }}
+                >
+                  REQUEST SENT
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* CSS Keyframe Animations */}
+          <style>{`
+            @keyframes successFadeIn {
+              from {
+                opacity: 0;
+              }
+              to {
+                opacity: 1;
+              }
+            }
+            
+            @keyframes successBounce {
+              0% {
+                opacity: 0;
+                transform: scale(0);
+              }
+              60% {
+                opacity: 1;
+                transform: scale(1.1);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            
+            @keyframes successTextFade {
+              from {
+                opacity: 0;
+                transform: translateY(10px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+          `}</style>
       </div>
     </div>
+    
+    
+    </>
   );
 }

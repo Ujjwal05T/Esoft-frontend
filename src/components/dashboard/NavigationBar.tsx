@@ -60,7 +60,7 @@ export default function NavigationBar({ role = 'staff' }: NavigationBarProps) {
 
   return (
     <div 
-      className="fixed bg-[#e8ebf2] flex gap-[6px] items-start bottom-0 z-50 
+      className="md:hidden fixed bg-[#e8ebf2] flex gap-[6px] items-start bottom-0 z-50 
                  w-full max-w-[500px] 
                  left-1/2 -translate-x-1/2
                  px-[10px] sm:px-[16px] py-[6px] "

@@ -214,8 +214,8 @@ export default function AddVehicleOverlay({
   onScanRCCard,
   onAddManually,
 }: AddVehicleOverlayProps) {
-  // View state: 'search' | 'manual' | 'form'
-  const [currentView, setCurrentView] = useState<'search' | 'manual' | 'form'>('search');
+  // View state: 'search' | 'manual' | 'form' | 'success'
+  const [currentView, setCurrentView] = useState<'search' | 'manual' | 'form' | 'success'>('search');
   
   // Search view state
   const [plateNumber, setPlateNumber] = useState('');
@@ -430,8 +430,19 @@ export default function AddVehicleOverlay({
       });
     }
     
-    onClose();
+    // Show success view
+    setCurrentView('success');
   };
+
+  // Auto close after success
+  useEffect(() => {
+    if (currentView === 'success') {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentView, onClose]);
 
   // Reset state when overlay closes
   useEffect(() => {
@@ -1126,6 +1137,94 @@ export default function AddVehicleOverlay({
               </div>
             </div>
           )}
+
+          {/* ========== SUCCESS VIEW (inside overlay) ========== */}
+          {currentView === 'success' && (
+            <div 
+              className="absolute inset-0 bg-[#e5383b] rounded-t-[16px] flex items-center justify-center"
+              style={{
+                animation: 'successFadeIn 0.3s ease-out forwards',
+              }}
+            >
+              {/* Checkmark Icon */}
+              <div className="flex flex-col items-center justify-center">
+                <div 
+                  className="mb-[24px] w-[61px] h-[61px] bg-white rounded-full flex items-center justify-center shadow-lg"
+                  style={{
+                    animation: 'successBounce 0.5s ease-out 0.1s forwards',
+                    opacity: 0,
+                    transform: 'scale(0)',
+                  }}
+                >
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 32 32"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M8 16L14 22L24 10"
+                      stroke="#e5383b"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                
+                {/* Message Text */}
+                <p
+                  className="text-white text-[20px] font-medium tracking-[1px] text-center"
+                  style={{ 
+                    fontFamily: "'Inter', sans-serif",
+                    animation: 'successTextFade 0.3s ease-out 0.2s forwards',
+                    opacity: 0,
+                  }}
+                >
+                  REQUEST SENT
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* CSS Keyframe Animations */}
+          <style>{`
+            @keyframes successFadeIn {
+              from {
+                opacity: 0;
+              }
+              to {
+                opacity: 1;
+              }
+            }
+            
+            @keyframes successBounce {
+              0% {
+                opacity: 0;
+                transform: scale(0);
+              }
+              60% {
+                opacity: 1;
+                transform: scale(1.1);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            
+            @keyframes successTextFade {
+              from {
+                opacity: 0;
+                transform: translateY(10px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+          `}</style>
         </div>
       </div>
 
@@ -1138,3 +1237,4 @@ export default function AddVehicleOverlay({
     </>
   );
 }
+    

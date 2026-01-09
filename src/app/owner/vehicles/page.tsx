@@ -75,13 +75,12 @@ export default function VehiclesPage() {
   const handleSubmitRequest = (data: { plateNumber: string; ownerName: string; contactNumber: string; odometerReading: string; observations: string }) => {
     console.log('Vehicle request submitted:', data);
     // In real app, send data to API
-    setShowAddVehicle(false);
+    // setShowAddVehicle(false);
   };
 
   const handleAddManually = () => {
     console.log('Add vehicle manually');
-    setShowAddVehicle(false);
-    // Navigate to manual add form
+    // Manual form is now handled within the overlay
   };
 
   return (

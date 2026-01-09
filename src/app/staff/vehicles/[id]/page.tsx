@@ -737,7 +737,7 @@ export default function VehicleDetailPage() {
         onClose={() => setShowRaiseDisputeOverlay(false)}
         onConfirm={(data) => {
           console.log('Dispute submitted:', data);
-          setShowRaiseDisputeOverlay(false);
+          // setShowRaiseDisputeOverlay(false);
         }}
         onChatWithUs={() => console.log('Open chat')}
         orderSuggestions={orderSuggestions}
