@@ -133,16 +133,25 @@ export default function LoginPage() {
             </AuthButton>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
             <p className="text-[#99a2b6] text-[14px]">
-              Don't have an account?{' '}
+              Don't have an account?
+            </p>
+            <div className="flex gap-3 justify-center">
               <Link
                 href="/register"
-                className="text-[#e5383b] font-semibold hover:text-[#c62f32]"
+                className="text-[#e5383b] font-semibold hover:text-[#c62f32] text-[14px]"
               >
-                Register Now
+                Register as Owner
               </Link>
-            </p>
+              <span className="text-[#d4d9e3]">|</span>
+              <Link
+                href="/register-staff"
+                className="text-[#2294f2] font-semibold hover:text-[#1c7acc] text-[14px]"
+              >
+                Join as Staff
+              </Link>
+            </div>
           </div>
         </div>
 
