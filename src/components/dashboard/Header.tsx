@@ -1,43 +1,66 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import Image from 'next/image';
+import MobileSidebar from '../layout/MobileSidebar';
 
-export default function Header() {
+interface HeaderProps {
+  user?: {
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+}
+
+export default function Header({ user }: HeaderProps) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div className="md:hidden fixed bg-white h-[50px] left-0 top-0 w-full max-w-[440px] z-50">
+    <>
+      <MobileSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        user={user}
+      />
       
-
-      {/* Menu Bar */}
-      <div className="bg-white flex items-center justify-between px-[16px] py-[10px] w-full">
-        <div className="flex gap-[8px] items-center">
-          {/* Hamburger Menu */}
-          <button className="h-[20px] w-[30px] relative">
+      <div className="md:hidden fixed bg-white h-[50px] left-0 top-0 w-full max-w-[440px] z-50">
+        {/* Menu Bar */}
+        <div className="bg-white flex items-center justify-between px-[16px] py-[10px] w-full">
+          <div className="flex gap-[8px] items-center">
+            {/* Hamburger Menu */}
+            <button 
+              className="h-[20px] w-[30px] relative"
+              onClick={() => setIsSidebarOpen(true)}
+              aria-label="Open menu"
+            >
+              <Image
+                src="/assets/icons/hamburger.svg"
+                alt="Menu"
+                fill
+                className="object-contain"
+              />
+            </button>
+            {/* Logo */}
+            <div className="flex items-center h-[36px] w-[66px] relative">
+              <Image
+                src="/assets/logos/etna-logo.svg"
+                alt="ETNA SPARES"
+                fill
+                className="object-contain"
+              />
+            </div>
+          </div>
+          {/* Search Icon */}
+          <button className="w-[24px] h-[24px] relative">
             <Image
-              src="/assets/icons/hamburger.svg"
-              alt="Menu"
+              src="/assets/icons/search.svg"
+              alt="Search"
               fill
               className="object-contain"
             />
           </button>
-          {/* Logo */}
-          <div className="flex items-center h-[36px] w-[66px] relative">
-            <Image
-              src="/assets/logos/etna-logo.svg"
-              alt="ETNA SPARES"
-              fill
-              className="object-contain"
-            />
-          </div>
         </div>
-        {/* Search Icon */}
-        <button className="w-[24px] h-[24px] relative">
-          <Image
-            src="/assets/icons/search.svg"
-            alt="Search"
-            fill
-            className="object-contain"
-          />
-        </button>
       </div>
-    </div>
+    </>
   );
 }
