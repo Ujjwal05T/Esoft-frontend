@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import StatusBadge, { StatusType, normalizeStatus } from '@/components/ui/StatusBadge';
 
 export type OrderStatus = 'in-process' | 'shipped' | 'delivered';
 
@@ -32,59 +33,15 @@ interface OrderCardProps {
   onDownloadInvoice?: (orderId: string) => void;
 }
 
-// Status Badge Component
-const StatusBadge = ({ status }: { status: OrderStatus }) => {
-  const statusConfig = {
-    'in-process': {
-      label: 'In Process',
-      bgColor: 'bg-[#e5383b]',
-      textColor: 'text-white',
-    },
-    'shipped': {
-      label: 'Shipped',
-      bgColor: 'bg-[#ff9800]',
-      textColor: 'text-white',
-    },
-    'delivered': {
-      label: 'Delivered',
-      bgColor: 'bg-[#4caf50]',
-      textColor: 'text-white',
-    },
+// Map OrderStatus to StatusType for StatusBadge
+const mapOrderStatusToStatusType = (status: OrderStatus): StatusType => {
+  const mapping: Record<OrderStatus, StatusType> = {
+    'in-process': 'in_process',
+    'shipped': 'shipped',
+    'delivered': 'delivered',
   };
-
-  const config = statusConfig[status];
-
-  return (
-    <div className={`${config.bgColor} ${config.textColor} px-[12px] py-[4px] rounded-[4px]`}>
-      <span
-        className="text-[12px] font-medium"
-        style={{ fontFamily: "'Inter', sans-serif" }}
-      >
-        {config.label}
-      </span>
-    </div>
-  );
+  return mapping[status];
 };
-
-// Chevron Icon
-const ChevronIcon = ({ isExpanded }: { isExpanded: boolean }) => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-  >
-    <path
-      d="M6 9L12 15L18 9"
-      stroke="#e5383b"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
 
 // Image Placeholder Icon
 const ImagePlaceholder = () => (
@@ -104,6 +61,26 @@ const TrackIcon = () => (
   </svg>
 );
 
+// Chevron Icon for expand indicator
+const ChevronDownIcon = ({ isExpanded }: { isExpanded: boolean }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+  >
+    <path
+      d="M6 9L12 15L18 9"
+      stroke="#e5383b"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export default function OrderCard({
   order,
   defaultExpanded = false,
@@ -118,13 +95,27 @@ export default function OrderCard({
 
   const deliveryLabel = order.status === 'delivered' ? 'Delivered at:' : 'Delivery by:';
 
+  // Toggle expand when clicking anywhere on the card header
+  const handleCardClick = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  // Prevent action button clicks from toggling expansion
+  const handleActionClick = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation();
+    action();
+  };
+
   return (
     <div
-      className="bg-white rounded-[12px] border border-[#e0e0e0] overflow-hidden"
+      className="bg-white rounded-[12px] border border-[#e0e0e0] overflow-hidden cursor-pointer transition-all duration-300"
       style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}
     >
-      {/* Header - Always Visible */}
-      <div className="p-[16px]">
+      {/* Clickable Header Area */}
+      <div 
+        className="p-[16px] hover:bg-[#fafafa] transition-colors"
+        onClick={handleCardClick}
+      >
         {/* Top Row - Vehicle Info & Status */}
         <div className="flex items-start justify-between mb-[8px]">
           <div className="flex-1">
@@ -141,7 +132,10 @@ export default function OrderCard({
               {order.plateNumber}
             </p>
           </div>
-          <StatusBadge status={order.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={mapOrderStatusToStatusType(order.status)} />
+            <ChevronDownIcon isExpanded={isExpanded} />
+          </div>
         </div>
 
         {/* Order ID & Placed Date */}
@@ -185,8 +179,12 @@ export default function OrderCard({
         </div>
       </div>
 
-      {/* Expandable Content */}
-      {isExpanded && (
+      {/* Expandable Content - Animated */}
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
         <div className="px-[16px] pb-[16px]">
           {/* Ordered Parts Header */}
           <p
@@ -265,7 +263,7 @@ export default function OrderCard({
           <div className="flex gap-[12px] mt-[16px]">
             {order.status === 'delivered' ? (
               <button
-                onClick={() => onDownloadInvoice?.(order.id)}
+                onClick={(e) => handleActionClick(e, () => onDownloadInvoice?.(order.id))}
                 className="flex-1 bg-[#e5383b] text-white py-[12px] rounded-[8px] hover:bg-[#c82d30] transition-colors"
               >
                 <span
@@ -275,10 +273,22 @@ export default function OrderCard({
                   Download Invoice
                 </span>
               </button>
+            ) : order.status === 'shipped' ? (
+              <button
+                onClick={(e) => handleActionClick(e, () => onTrackOrder?.(order.id))}
+                className="flex-1 bg-[#e5383b] text-white py-[12px] rounded-[8px] hover:bg-[#c82d30] transition-colors flex items-center justify-center gap-[8px]"
+              >
+                <span
+                  className="text-[13px] font-semibold"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  View Delivery Details
+                </span>
+              </button>
             ) : (
               <>
                 <button
-                  onClick={() => onTrackOrder?.(order.id)}
+                  onClick={(e) => handleActionClick(e, () => onTrackOrder?.(order.id))}
                   className="flex-1 bg-[#e5383b] text-white py-[12px] rounded-[8px] hover:bg-[#c82d30] transition-colors flex items-center justify-center gap-[8px]"
                 >
                   <span
@@ -289,7 +299,7 @@ export default function OrderCard({
                   </span>
                 </button>
                 <button
-                  onClick={() => onTrackOrder?.(order.id)}
+                  onClick={(e) => handleActionClick(e, () => onTrackOrder?.(order.id))}
                   className="w-[50px] border border-[#e5383b] rounded-[8px] flex items-center justify-center hover:bg-[#fff5f5] transition-colors"
                 >
                   <TrackIcon />
@@ -298,21 +308,7 @@ export default function OrderCard({
             )}
           </div>
         </div>
-      )}
-
-      {/* Expand/Collapse Toggle */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full py-[12px] border-t border-[#e0e0e0] flex items-center justify-center gap-[8px] hover:bg-[#f9f9f9] transition-colors"
-      >
-        <span
-          className="text-[13px] font-medium text-[#e5383b]"
-          style={{ fontFamily: "'Inter', sans-serif" }}
-        >
-          {isExpanded ? 'Show Less' : 'Show Details'}
-        </span>
-        <ChevronIcon isExpanded={isExpanded} />
-      </button>
+      </div>
     </div>
   );
 }

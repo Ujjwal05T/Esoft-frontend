@@ -99,12 +99,12 @@ export default function NavigationBar({ role = 'staff' }: NavigationBarProps) {
             </Link>
           );
         })}
-        {/* Floating Action Button */}
-        <div className="relative w-[60px] h-[60px] sm:w-[78px] sm:h-[78px] shrink-0 ml-[8px]">
+        {/* Floating Action Button - Links to AI Assistant */}
+        <Link href="/ai-assistant" className="relative w-[60px] h-[60px] sm:w-[78px] sm:h-[78px] shrink-0 ml-[8px]">
           <div className="absolute inset-[-57.69%]">
             <Image
               src="/assets/icons/fab-circle.svg"
-              alt="Add"
+              alt="AI Assistant"
               fill
               className="object-contain"
             />
@@ -113,13 +113,13 @@ export default function NavigationBar({ role = 'staff' }: NavigationBarProps) {
             <div className="w-[18px] h-[18px] sm:w-[23px] sm:h-[23px] relative">
               <Image
                 src="/assets/icons/plus.svg"
-                alt="Add"
+                alt="AI Assistant"
                 fill
                 className="object-contain"
               />
             </div>
           </div>
-        </div>
+        </Link>
       </div>
     </div>
   );

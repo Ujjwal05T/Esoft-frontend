@@ -1,730 +1,412 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import AuthInput from '@/components/auth/AuthInput';
-import AuthButton from '@/components/auth/AuthButton';
-import {
-  registerOwner,
-  verifyEmail,
-  resendOtp,
-  initiateETNAVerification,
-  completeETNAVerification,
-  uploadOwnerPhoto,
-  uploadWorkshopPhoto,
-  completePhotoUpload,
-} from '@/services/api';
+import { useRouter } from 'next/navigation';
+import FloatingInput from '@/components/ui/FloatingInput';
 
 type RegistrationStep = 
-  | 'personal-info'      // Step 1a: Personal details
-  | 'workshop-info'      // Step 1b: Workshop details
-  | 'verify-email'       // Step 2: Email OTP
-  | 'pending-etna'       // Step 3a: Wait for ETNA
-  | 'etna-verification'  // Step 3b: ETNA OTPs
-  | 'photo-upload'       // Step 4: Photos
-  | 'complete';          // Done
+  | 'enter-mobile'     // Step 1: Enter Mobile Number
+  | 'verify-otp'       // Step 2: Verify OTP
+  | 'workshop-details' // Step 3: Workshop Details
+  | 'request-sent';    // Step 4: Success Screen
 
-export default function RegisterPage() {
-  const [currentStep, setCurrentStep] = useState<RegistrationStep>('personal-info');
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  // Step 1a: Personal Info
-  const [personalInfo, setPersonalInfo] = useState({
-    ownerName: '',
-    email: '',
-    phoneNumber: '',
-    password: '',
-    confirmPassword: '',
-  });
+// OTP Input Component
+interface OTPInputProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+}
 
-  // Step 1b: Workshop Info
-  const [workshopInfo, setWorkshopInfo] = useState({
-    workshopName: '',
-    address: '',
-    city: '',
-    tradeLicense: '',
-  });
+function OTPInput({ value, onChange }: OTPInputProps) {
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Step 2: Email OTP
-  const [emailOtp, setEmailOtp] = useState('');
+  const handleChange = (index: number, digit: string) => {
+    if (!/^\d*$/.test(digit)) return; // Only allow digits
+    
+    const newValue = [...value];
+    newValue[index] = digit.slice(-1); // Only take last character
+    onChange(newValue);
 
-  // Step 3: ETNA Verification
-  const [etnaData, setEtnaData] = useState({
-    etnaMemberName: '',
-    etnaMemberPhone: '',
-    etnaOtp: '',
-    ownerOtp: '',
-  });
-
-  // Step 4: Photo Upload
-  const [ownerPhoto, setOwnerPhoto] = useState<File | null>(null);
-  const [workshopPhoto, setWorkshopPhoto] = useState<File | null>(null);
-  const [ownerPhotoPreview, setOwnerPhotoPreview] = useState('');
-  const [workshopPhotoPreview, setWorkshopPhotoPreview] = useState('');
-
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-
-  // Handle file selection
-  const handleFileSelect = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    type: 'owner' | 'workshop'
-  ) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (type === 'owner') {
-          setOwnerPhoto(file);
-          setOwnerPhotoPreview(reader.result as string);
-        } else {
-          setWorkshopPhoto(file);
-          setWorkshopPhotoPreview(reader.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+    // Auto-focus next input
+    if (digit && index < 5) {
+      inputRefs.current[index + 1]?.focus();
     }
   };
 
-  // Step 1a: Validate & Continue to Workshop Info
-  const handlePersonalInfoNext = (e: React.FormEvent) => {
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !value[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    setError('');
-
-    if (!personalInfo.ownerName.trim()) {
-      setError('Please enter your name');
-      return;
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const newValue = [...value];
+    for (let i = 0; i < pastedData.length; i++) {
+      newValue[i] = pastedData[i];
     }
-    if (!personalInfo.email.trim() || !/\S+@\S+\.\S+/.test(personalInfo.email)) {
-      setError('Please enter a valid email');
-      return;
-    }
-    if (!personalInfo.phoneNumber.trim()) {
-      setError('Please enter your phone number');
-      return;
-    }
-    if (personalInfo.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-    if (personalInfo.password !== personalInfo.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    setCurrentStep('workshop-info');
+    onChange(newValue);
+    // Focus last filled input or first empty
+    const lastFilledIndex = Math.min(pastedData.length - 1, 5);
+    inputRefs.current[lastFilledIndex]?.focus();
   };
-
-  // Step 1b: Submit Registration
-  const handleWorkshopInfoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!workshopInfo.workshopName.trim()) {
-      setError('Please enter workshop name');
-      return;
-    }
-    if (!workshopInfo.address.trim()) {
-      setError('Please enter workshop address');
-      return;
-    }
-    if (!workshopInfo.city.trim()) {
-      setError('Please enter city');
-      return;
-    }
-    if (!workshopInfo.tradeLicense.trim()) {
-      setError('Please enter trade license');
-      return;
-    }
-    if (!agreedToTerms) {
-      setError('Please agree to the Terms and Conditions');
-      return;
-    }
-
-    setLoading(true);
-    const result = await registerOwner({
-      ownerName: personalInfo.ownerName,
-      email: personalInfo.email,
-      phoneNumber: personalInfo.phoneNumber,
-      password: personalInfo.password,
-      workshopName: workshopInfo.workshopName,
-      address: workshopInfo.address,
-      city: workshopInfo.city,
-      tradeLicense: workshopInfo.tradeLicense,
-    });
-    setLoading(false);
-
-    if (result.success) {
-      setEmail(personalInfo.email);
-      setSuccess('Registration successful! Please check your email for OTP.');
-      setCurrentStep('verify-email');
-    } else {
-      setError(result.error || 'Registration failed');
-    }
-  };
-
-  // Step 2: Verify Email OTP
-  const handleVerifyEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    setLoading(true);
-    const result = await verifyEmail({ email, otp: emailOtp });
-    setLoading(false);
-
-    if (result.success) {
-      setSuccess('Email verified! Awaiting ETNA team verification.');
-      setCurrentStep('pending-etna');
-    } else {
-      setError(result.error || 'Verification failed');
-    }
-  };
-
-  // Resend OTP
-  const handleResendOtp = async () => {
-    setError('');
-    setLoading(true);
-    const result = await resendOtp(email);
-    setLoading(false);
-
-    if (result.success) {
-      setSuccess('OTP sent successfully!');
-    } else {
-      setError(result.error || 'Failed to resend OTP');
-    }
-  };
-
-  // Step 3a: Initiate ETNA Verification
-  const handleInitiateETNA = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    setLoading(true);
-    const result = await initiateETNAVerification({
-      ownerEmail: email,
-      etnaMemberName: etnaData.etnaMemberName,
-      etnaMemberPhone: etnaData.etnaMemberPhone,
-    });
-    setLoading(false);
-
-    if (result.success) {
-      setSuccess('OTP sent to your email. ETNA OTP: 111111');
-      setCurrentStep('etna-verification');
-    } else {
-      setError(result.error || 'Failed to initiate verification');
-    }
-  };
-
-  // Step 3b: Complete ETNA Verification
-  const handleCompleteETNA = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    setLoading(true);
-    const result = await completeETNAVerification({
-      ownerEmail: email,
-      etnaMemberName: etnaData.etnaMemberName,
-      etnaMemberPhone: etnaData.etnaMemberPhone,
-      etnaOtp: etnaData.etnaOtp,
-      ownerOtp: etnaData.ownerOtp,
-    });
-    setLoading(false);
-
-    if (result.success) {
-      setSuccess('ETNA verification complete! Please upload photos.');
-      setCurrentStep('photo-upload');
-    } else {
-      setError(result.error || 'Verification failed');
-    }
-  };
-
-  // Step 4: Upload Photos and Complete
-  const handleUploadPhotos = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!ownerPhoto || !workshopPhoto) {
-      setError('Please upload both photos');
-      return;
-    }
-
-    setLoading(true);
-
-    const ownerResult = await uploadOwnerPhoto(email, ownerPhoto);
-    if (!ownerResult.success) {
-      setLoading(false);
-      setError(ownerResult.error || 'Failed to upload owner photo');
-      return;
-    }
-
-    const workshopResult = await uploadWorkshopPhoto(email, workshopPhoto);
-    if (!workshopResult.success) {
-      setLoading(false);
-      setError(workshopResult.error || 'Failed to upload workshop photo');
-      return;
-    }
-
-    const completeResult = await completePhotoUpload(email);
-    setLoading(false);
-
-    if (completeResult.success) {
-      setSuccess('Registration complete! Your account is now active.');
-      setCurrentStep('complete');
-    } else {
-      setError(completeResult.error || 'Failed to complete registration');
-    }
-  };
-
-  // Progress indicator - Updated with sub-steps
-  const steps = [
-    { id: 'personal-info', label: 'Personal' },
-    { id: 'workshop-info', label: 'Workshop' },
-    { id: 'verify-email', label: 'Email' },
-    { id: 'pending-etna', label: 'ETNA' },
-    { id: 'photo-upload', label: 'Photos' },
-    { id: 'complete', label: 'Done' },
-  ];
-
-  const currentStepIndex = steps.findIndex(
-    (s) => s.id === currentStep || (currentStep === 'etna-verification' && s.id === 'pending-etna')
-  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f5f3f4] to-white flex items-center justify-center p-4 py-8">
-      <div className="w-full max-w-[480px] mx-auto">
-        {/* Logo */}
-        <div className="text-center mb-6">
-          <div className="inline-block">
-            <div className="text-[#e5383b] font-bold text-[40px] leading-tight">ETNA</div>
-            <div className="text-[#e5383b] font-bold text-[16px] tracking-wider">SPARES</div>
+    <div className="flex gap-3 justify-start">
+      {[0, 1, 2, 3, 4, 5].map((index) => (
+        <input
+          key={index}
+          ref={(el) => { inputRefs.current[index] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={value[index] || ''}
+          onChange={(e) => handleChange(index, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(index, e)}
+          onPaste={handlePaste}
+          className={`w-[48px] text-black h-[48px] text-center text-[18px] font-medium border rounded-[8px]
+            outline-none transition-all duration-200
+            ${value[index] ? 'border-[#e5383b]' : 'border-[#d1d5db]'}
+            focus:border-[#e5383b]`}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [currentStep, setCurrentStep] = useState<RegistrationStep>('enter-mobile');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Step 1: Mobile Number
+  const [mobileNumber, setMobileNumber] = useState('');
+
+  // Step 2: OTP
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+
+  // Step 3: Workshop Details
+  const [workshopDetails, setWorkshopDetails] = useState({
+    fullName: '',
+    contactNumber: '',
+    email: '',
+    workshopName: '',
+    address: '',
+    landmark: '',
+    pinCode: '',
+    city: '',
+  });
+
+  // Validation checks
+  const isMobileValid = mobileNumber.length >= 10;
+  const isOtpComplete = otp.every(digit => digit !== '');
+  const isWorkshopFormValid = 
+    workshopDetails.fullName.trim() !== '' &&
+    workshopDetails.contactNumber.trim() !== '' &&
+    workshopDetails.email.trim() !== '' &&
+    workshopDetails.workshopName.trim() !== '' &&
+    workshopDetails.address.trim() !== '' &&
+    workshopDetails.pinCode.trim() !== '' &&
+    workshopDetails.city.trim() !== '';
+
+  // Handle Get OTP
+  const handleGetOTP = async () => {
+    if (!isMobileValid) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      // TODO: Implement actual OTP sending API call
+      // const result = await sendOTP(mobileNumber);
+      
+      // Simulating API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setCurrentStep('verify-otp');
+    } catch (err) {
+      setError('Failed to send OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Verify OTP
+  const handleVerifyOTP = async () => {
+    if (!isOtpComplete) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const otpCode = otp.join('');
+      // TODO: Implement actual OTP verification API call
+      // const result = await verifyOTP(mobileNumber, otpCode);
+      
+      // Simulating API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Pre-fill contact number from mobile
+      setWorkshopDetails(prev => ({ ...prev, contactNumber: mobileNumber }));
+      setCurrentStep('workshop-details');
+    } catch (err) {
+      setError('Invalid OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Send Request
+  const handleSendRequest = async () => {
+    if (!isWorkshopFormValid) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      // TODO: Implement actual registration API call
+      // const result = await registerWorkshop({
+      //   mobileNumber,
+      //   ...workshopDetails
+      // });
+
+      // Simulating API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Show success screen
+      setCurrentStep('request-sent');
+    } catch (err) {
+      setError('Failed to submit registration. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle back navigation
+  const handleBack = () => {
+    if (currentStep === 'request-sent') {
+      router.push('/login');
+    } else if (currentStep === 'verify-otp') {
+      setCurrentStep('enter-mobile');
+      setOtp(['', '', '', '', '', '']);
+    } else if (currentStep === 'workshop-details') {
+      setCurrentStep('verify-otp');
+    } else {
+      router.back();
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <button onClick={handleBack} className="text-[#1a1a1a]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <h1 className="text-[20px] font-semibold text-[#e5383b]">Register</h1>
+        </div>
+        <button className="text-[#1a1a1a]">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 flex flex-col px-4">
+        {/* Error Message */}
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            {error}
           </div>
-          <p className="text-[#99a2b6] text-[14px] mt-1">Workshop Owner Registration</p>
-        </div>
+        )}
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-between mb-6 px-2">
-          {steps.map((step, index) => (
-            <React.Fragment key={step.id}>
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
-                    ${index <= currentStepIndex 
-                      ? 'bg-[#e5383b] text-white' 
-                      : 'bg-[#d4d9e3] text-[#99a2b6]'
-                    }`}
-                >
-                  {index < currentStepIndex ? '✓' : index + 1}
-                </div>
-                <span className="text-[9px] mt-1 text-[#99a2b6] text-center">{step.label}</span>
-              </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={`flex-1 h-0.5 mx-1 rounded ${
-                    index < currentStepIndex ? 'bg-[#e5383b]' : 'bg-[#d4d9e3]'
-                  }`}
-                />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+        {/* Step 1: Enter Mobile Number */}
+        {currentStep === 'enter-mobile' && (
+          <div className="flex-1 flex flex-col pt-6">
+            <h2 className="text-[22px] font-semibold text-[#e5383b] mb-6">
+              Enter Mobile Number
+            </h2>
 
-        {/* Card */}
-        <div className="bg-white rounded-[16px] shadow-lg p-6">
-          {/* Error/Success Messages */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-              {error}
+            <FloatingInput
+              label="Enter Mobile Number"
+              value={mobileNumber}
+              onChange={setMobileNumber}
+              type="tel"
+              required
+            />
+          </div>
+        )}
+
+        {/* Step 2: Verify OTP */}
+        {currentStep === 'verify-otp' && (
+          <div className="flex-1 flex flex-col pt-8">
+            <h2 className="text-[22px] font-semibold text-[#e5383b] mb-6">
+              Verify OTP
+            </h2>
+
+            <OTPInput value={otp} onChange={setOtp} />
+
+            <button
+              onClick={() => handleGetOTP()}
+              className="mt-4 text-[#e5383b] text-sm font-medium text-left"
+            >
+              Resend OTP
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: Workshop Details */}
+        {currentStep === 'workshop-details' && (
+          <div className="flex-1 flex flex-col pt-8 pb-24 overflow-y-auto">
+            <h2 className="text-[22px] font-semibold text-[#e5383b] mb-6">
+              Workshop Details
+            </h2>
+
+            <div className="space-y-4">
+              <FloatingInput
+                label="Full Name (Required)"
+                value={workshopDetails.fullName}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, fullName: v }))}
+                required
+              />
+
+              <FloatingInput
+                label="Contact Number (Required)"
+                value={workshopDetails.contactNumber}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, contactNumber: v }))}
+                type="tel"
+                required
+              />
+
+              <FloatingInput
+                label="Email (Required)"
+                value={workshopDetails.email}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, email: v }))}
+                required
+              />
+
+              <FloatingInput
+                label="Workshop Name (Required)"
+                value={workshopDetails.workshopName}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, workshopName: v }))}
+                required
+              />
+
+              <FloatingInput
+                label="Address (Required)"
+                value={workshopDetails.address}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, address: v }))}
+                required
+              />
+
+              <FloatingInput
+                label="Landmark"
+                value={workshopDetails.landmark}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, landmark: v }))}
+              />
+
+              <FloatingInput
+                label="PIN Code (Required)"
+                value={workshopDetails.pinCode}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, pinCode: v }))}
+                required
+              />
+
+              <FloatingInput
+                label="City (Required)"
+                value={workshopDetails.city}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, city: v }))}
+                required
+              />
             </div>
-          )}
-          {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
-              {success}
+          </div>
+        )}
+
+        {/* Step 4: Request Sent Success Screen */}
+        {currentStep === 'request-sent' && (
+          <div className="flex-1 flex flex-col items-center justify-center">
+            {/* Checkmark Icon */}
+            <div className="w-[80px] h-[80px] rounded-full bg-[#e5383b] flex items-center justify-center mb-6">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                <path d="M5 12l5 5L19 7" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </div>
+
+            {/* Title */}
+            <h2 className="text-[28px] font-semibold text-[#e5383b] mb-4">
+              Request Sent
+            </h2>
+
+            {/* Description */}
+            <p className="text-[16px] text-[#e5383b] text-center px-6 leading-relaxed">
+              Our Representative will visit your workshop to verify and get you onboarded.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Section - Fixed to bottom (hide on success screen) */}
+      {currentStep !== 'request-sent' && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white px-4 pb-6 pt-4">
+          {/* Action Button */}
+          {currentStep === 'enter-mobile' && (
+            <button
+              onClick={handleGetOTP}
+              disabled={!isMobileValid || loading}
+              className={`w-full h-[52px] rounded-[8px] text-[16px] font-semibold tracking-wide
+                transition-all duration-200
+                ${isMobileValid && !loading
+                  ? 'bg-[#e5383b] text-white'
+                  : 'bg-[#d1d5db] text-white cursor-not-allowed'}`}
+            >
+              {loading ? 'SENDING...' : 'GET OTP'}
+            </button>
           )}
 
-          {/* Step 1a: Personal Information */}
-          {currentStep === 'personal-info' && (
-            <>
-              <h1 className="text-[24px] font-bold text-[#2b2b2b] mb-1">Personal Information</h1>
-              <p className="text-[#99a2b6] text-[14px] mb-6">Step 1 of 2 - Tell us about yourself</p>
-
-              <form onSubmit={handlePersonalInfoNext} className="space-y-4">
-                <AuthInput
-                  label="Full Name"
-                  placeholder="Enter your full name"
-                  value={personalInfo.ownerName}
-                  onChange={(v) => setPersonalInfo({ ...personalInfo, ownerName: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
-                    </svg>
-                  }
-                />
-                <AuthInput
-                  label="Email Address"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={personalInfo.email}
-                  onChange={(v) => setPersonalInfo({ ...personalInfo, email: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                    </svg>
-                  }
-                />
-                <AuthInput
-                  label="Phone Number"
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={personalInfo.phoneNumber}
-                  onChange={(v) => setPersonalInfo({ ...personalInfo, phoneNumber: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                    </svg>
-                  }
-                />
-                <AuthInput
-                  label="Password"
-                  type="password"
-                  placeholder="Create a password (min 6 chars)"
-                  value={personalInfo.password}
-                  onChange={(v) => setPersonalInfo({ ...personalInfo, password: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
-                    </svg>
-                  }
-                />
-                <AuthInput
-                  label="Confirm Password"
-                  type="password"
-                  placeholder="Re-enter your password"
-                  value={personalInfo.confirmPassword}
-                  onChange={(v) => setPersonalInfo({ ...personalInfo, confirmPassword: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                    </svg>
-                  }
-                />
-
-                <AuthButton type="submit">
-                  Continue →
-                </AuthButton>
-              </form>
-            </>
+          {currentStep === 'verify-otp' && (
+            <button
+              onClick={handleVerifyOTP}
+              disabled={!isOtpComplete || loading}
+              className={`w-full h-[52px] rounded-[8px] text-[16px] font-semibold tracking-wide
+                transition-all duration-200
+                ${isOtpComplete && !loading
+                  ? 'bg-[#e5383b] text-white'
+                  : 'bg-[#d1d5db] text-white cursor-not-allowed'}`}
+            >
+              {loading ? 'VERIFYING...' : 'VERIFY'}
+            </button>
           )}
 
-          {/* Step 1b: Workshop Information */}
-          {currentStep === 'workshop-info' && (
-            <>
-              <h1 className="text-[24px] font-bold text-[#2b2b2b] mb-1">Workshop Details</h1>
-              <p className="text-[#99a2b6] text-[14px] mb-6">Step 2 of 2 - Tell us about your workshop</p>
-
-              <form onSubmit={handleWorkshopInfoSubmit} className="space-y-4">
-                <AuthInput
-                  label="Workshop Name"
-                  placeholder="Enter workshop name"
-                  value={workshopInfo.workshopName}
-                  onChange={(v) => setWorkshopInfo({ ...workshopInfo, workshopName: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd"/>
-                    </svg>
-                  }
-                />
-                <AuthInput
-                  label="Address"
-                  placeholder="Enter workshop address"
-                  value={workshopInfo.address}
-                  onChange={(v) => setWorkshopInfo({ ...workshopInfo, address: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
-                    </svg>
-                  }
-                />
-                <AuthInput
-                  label="City"
-                  placeholder="Enter city"
-                  value={workshopInfo.city}
-                  onChange={(v) => setWorkshopInfo({ ...workshopInfo, city: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
-                    </svg>
-                  }
-                />
-                <AuthInput
-                  label="Trade License Number"
-                  placeholder="Enter trade license"
-                  value={workshopInfo.tradeLicense}
-                  onChange={(v) => setWorkshopInfo({ ...workshopInfo, tradeLicense: v })}
-                  required
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"/>
-                    </svg>
-                  }
-                />
-
-                <div className="flex items-start gap-2 pt-2">
-                  <input
-                    type="checkbox"
-                    id="terms"
-                    checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    className="w-4 h-4 mt-1 rounded border-[#d4d9e3] text-[#e5383b]"
-                  />
-                  <label htmlFor="terms" className="text-[#2b2b2b] text-[14px]">
-                    I agree to the{' '}
-                    <Link href="/terms" className="text-[#2294f2] font-medium">
-                      Terms and Conditions
-                    </Link>
-                  </label>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep('personal-info')}
-                    className="flex-1 h-[48px] border-2 border-[#d4d9e3] rounded-[8px] text-[#2b2b2b] font-semibold hover:border-[#e5383b] transition-colors"
-                  >
-                    ← Back
-                  </button>
-                  <AuthButton type="submit" loading={loading} fullWidth={false}>
-                    <span className="px-4">Register</span>
-                  </AuthButton>
-                </div>
-              </form>
-            </>
-          )}
-
-          {/* Step 2: Email Verification */}
-          {currentStep === 'verify-email' && (
-            <>
-              <h1 className="text-[24px] font-bold text-[#2b2b2b] mb-1">Verify Email</h1>
-              <p className="text-[#99a2b6] text-[14px] mb-6">
-                Enter the OTP sent to {email}
-              </p>
-
-              <form onSubmit={handleVerifyEmail} className="space-y-4">
-                <AuthInput
-                  label="OTP Code"
-                  placeholder="Enter 6-digit OTP"
-                  value={emailOtp}
-                  onChange={setEmailOtp}
-                  required
-                />
-                <AuthButton type="submit" loading={loading}>
-                  Verify Email
-                </AuthButton>
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={loading}
-                  className="w-full text-[#2294f2] text-sm hover:underline disabled:opacity-50"
-                >
-                  Resend OTP
-                </button>
-              </form>
-            </>
-          )}
-
-          {/* Step 3a: Pending ETNA Verification */}
-          {currentStep === 'pending-etna' && (
-            <>
-              <h1 className="text-[24px] font-bold text-[#2b2b2b] mb-1">ETNA Verification</h1>
-              <p className="text-[#99a2b6] text-[14px] mb-6">
-                An ETNA team member will visit your workshop
-              </p>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <p className="text-blue-800 text-sm">
-                  📍 Please wait for the ETNA team to visit your workshop. Once they arrive, enter their details below.
-                </p>
-              </div>
-
-              <form onSubmit={handleInitiateETNA} className="space-y-4">
-                <AuthInput
-                  label="ETNA Member Name"
-                  placeholder="Enter ETNA team member name"
-                  value={etnaData.etnaMemberName}
-                  onChange={(v) => setEtnaData({ ...etnaData, etnaMemberName: v })}
-                  required
-                />
-                <AuthInput
-                  label="ETNA Member Phone"
-                  placeholder="Enter ETNA team member phone"
-                  value={etnaData.etnaMemberPhone}
-                  onChange={(v) => setEtnaData({ ...etnaData, etnaMemberPhone: v })}
-                  required
-                />
-                <AuthButton type="submit" loading={loading}>
-                  Start Verification
-                </AuthButton>
-              </form>
-            </>
-          )}
-
-          {/* Step 3b: ETNA OTP Verification */}
-          {currentStep === 'etna-verification' && (
-            <>
-              <h1 className="text-[24px] font-bold text-[#2b2b2b] mb-1">Complete Verification</h1>
-              <p className="text-[#99a2b6] text-[14px] mb-6">
-                Enter both OTPs to complete verification
-              </p>
-
-              <form onSubmit={handleCompleteETNA} className="space-y-4">
-                <AuthInput
-                  label="ETNA Team OTP"
-                  placeholder="Enter ETNA OTP (111111)"
-                  value={etnaData.etnaOtp}
-                  onChange={(v) => setEtnaData({ ...etnaData, etnaOtp: v })}
-                  required
-                />
-                <AuthInput
-                  label="Your Email OTP"
-                  placeholder="Enter OTP from your email"
-                  value={etnaData.ownerOtp}
-                  onChange={(v) => setEtnaData({ ...etnaData, ownerOtp: v })}
-                  required
-                />
-                <AuthButton type="submit" loading={loading}>
-                  Complete Verification
-                </AuthButton>
-              </form>
-            </>
-          )}
-
-          {/* Step 4: Photo Upload */}
-          {currentStep === 'photo-upload' && (
-            <>
-              <h1 className="text-[24px] font-bold text-[#2b2b2b] mb-1">Upload Photos</h1>
-              <p className="text-[#99a2b6] text-[14px] mb-6">
-                Upload photos of yourself and your workshop
-              </p>
-
-              <form onSubmit={handleUploadPhotos} className="space-y-5">
-                {/* Owner Photo */}
-                <div>
-                  <label className="block text-[#2b2b2b] text-[14px] font-medium mb-2">
-                    Your Photo <span className="text-[#e5383b]">*</span>
-                  </label>
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-[#e5383b] transition-colors
-                      ${ownerPhotoPreview ? 'border-green-400' : 'border-[#d4d9e3]'}`}
-                    onClick={() => document.getElementById('owner-photo')?.click()}
-                  >
-                    {ownerPhotoPreview ? (
-                      <img
-                        src={ownerPhotoPreview}
-                        alt="Owner preview"
-                        className="w-24 h-24 object-cover rounded-lg mx-auto"
-                      />
-                    ) : (
-                      <div className="py-3">
-                        <div className="text-3xl mb-1">📷</div>
-                        <p className="text-[#99a2b6] text-sm">Click to upload</p>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    id="owner-photo"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFileSelect(e, 'owner')}
-                  />
-                </div>
-
-                {/* Workshop Photo */}
-                <div>
-                  <label className="block text-[#2b2b2b] text-[14px] font-medium mb-2">
-                    Workshop Photo <span className="text-[#e5383b]">*</span>
-                  </label>
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-[#e5383b] transition-colors
-                      ${workshopPhotoPreview ? 'border-green-400' : 'border-[#d4d9e3]'}`}
-                    onClick={() => document.getElementById('workshop-photo')?.click()}
-                  >
-                    {workshopPhotoPreview ? (
-                      <img
-                        src={workshopPhotoPreview}
-                        alt="Workshop preview"
-                        className="w-24 h-24 object-cover rounded-lg mx-auto"
-                      />
-                    ) : (
-                      <div className="py-3">
-                        <div className="text-3xl mb-1">🏭</div>
-                        <p className="text-[#99a2b6] text-sm">Click to upload</p>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    id="workshop-photo"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFileSelect(e, 'workshop')}
-                  />
-                </div>
-
-                <AuthButton type="submit" loading={loading}>
-                  Complete Registration
-                </AuthButton>
-              </form>
-            </>
-          )}
-
-          {/* Step 5: Complete */}
-          {currentStep === 'complete' && (
-            <div className="text-center py-6">
-              <div className="text-5xl mb-3">🎉</div>
-              <h1 className="text-[24px] font-bold text-[#2b2b2b] mb-2">
-                Registration Complete!
-              </h1>
-              <p className="text-[#99a2b6] text-[14px] mb-6">
-                Your account is now active. You can login to access your dashboard.
-              </p>
-              <Link href="/login">
-                <AuthButton>Go to Login</AuthButton>
-              </Link>
-            </div>
+          {currentStep === 'workshop-details' && (
+            <button
+              onClick={handleSendRequest}
+              disabled={!isWorkshopFormValid || loading}
+              className={`w-full h-[52px] rounded-[8px] text-[16px] font-semibold tracking-wide
+                transition-all duration-200
+                ${isWorkshopFormValid && !loading
+                  ? 'bg-[#e5383b] text-white'
+                  : 'bg-[#d1d5db] text-white cursor-not-allowed'}`}
+            >
+              {loading ? 'SENDING...' : 'SEND REQUEST'}
+            </button>
           )}
 
           {/* Login Link */}
-          {(currentStep === 'personal-info' || currentStep === 'workshop-info') && (
-            <div className="mt-6 text-center">
-              <p className="text-[#99a2b6] text-[14px]">
-                Already have an account?{' '}
-                <Link href="/login" className="text-[#e5383b] font-semibold hover:text-[#c62f32]">
-                  Sign In
-                </Link>
-              </p>
-            </div>
-          )}
+          <div className="mt-4 text-center">
+            <span className="text-[#666] text-[14px]">
+              Already have an account ?{' '}
+            </span>
+            <Link href="/login" className="text-[#e5383b] text-[14px] font-medium">
+              Log In
+            </Link>
+          </div>
         </div>
-
-        {/* Footer */}
-        <div className="text-center mt-6">
-          <p className="text-[#99a2b6] text-[12px]">
-            © 2026 ETNA Spares. All rights reserved.
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

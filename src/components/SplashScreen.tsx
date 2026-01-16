@@ -12,7 +12,7 @@ interface SplashScreenProps {
 }
 
 export default function SplashScreen({
-  duration = 2000, // 3 seconds total
+  duration = 1000, // 3 seconds total
   onFinish,
   isVisible = true,
 }: SplashScreenProps) {
@@ -36,7 +36,7 @@ export default function SplashScreen({
     // Start fading out after duration - fade animation duration (logo visible for ~1.8s before fade starts)
     const fadeTimer = setTimeout(() => {
       setIsFading(true);
-    }, duration - 600);
+    }, duration - 800);
 
     // Hide completely after duration
     const hideTimer = setTimeout(() => {

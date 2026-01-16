@@ -1,93 +1,263 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import NavigationBar from '@/components/dashboard/NavigationBar';
 import Sidebar from '@/components/layout/Sidebar';
+import OrderCard, { Order } from '@/components/dashboard/OrderCard';
 
-// Rocket Icon for Coming Soon
-const RocketIcon = () => (
-  <svg width="120" height="120" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path
-      d="M12 2.5C12 2.5 7.5 7 7.5 13.5C7.5 17.5 5 19.5 5 19.5C5 19.5 8 19.5 9.5 21.5L12 18.5L14.5 21.5C16 19.5 19 19.5 19 19.5C19 19.5 16.5 17.5 16.5 13.5C16.5 7 12 2.5 12 2.5Z"
-      stroke="#e5383b"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M12 8C12 8 11 9 11 10.5C11 12 12 13 12 13C12 13 13 12 13 10.5C13 9 12 8 12 8Z"
-      stroke="#e5383b"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M8.5 16C8.5 16 9.5 14.5 9.5 13.5"
-      stroke="#e5383b"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M15.5 16C15.5 16 14.5 14.5 14.5 13.5"
-      stroke="#e5383b"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    {/* Motion lines */}
-    <path d="M4 8L2 10" stroke="#e5383b" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
-    <path d="M20 8L22 10" stroke="#e5383b" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
-    <path d="M5 5L3 6" stroke="#e5383b" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.3" />
-    <path d="M19 5L21 6" stroke="#e5383b" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.3" />
-  </svg>
-);
+// Dummy mockup data for orders
+const mockOrders: Order[] = [
+  {
+    id: '1',
+    vehicleName: 'Toyota Crysta',
+    plateNumber: 'MP09-GP4567',
+    orderId: 'ET/ORD/24-25/01255',
+    placedDate: '5 dec 2025',
+    deliveryDate: '12 dec 2025',
+    totalAmount: 2750.50,
+    status: 'in-process',
+    orderedParts: [
+      {
+        id: 'p1',
+        name: 'Brake Pad Set (Front)',
+        brand: 'Brembo OEM',
+        price: 500.00,
+        quantity: 2,
+      },
+      {
+        id: 'p2',
+        name: 'Oil Filter (Synthetic)',
+        brand: 'Bosch After Market',
+        price: 1650.50,
+        quantity: 4,
+      },
+      {
+        id: 'p3',
+        name: 'Wiper Blade - Driver Side',
+        brand: 'Bosch OEM',
+        price: 600.00,
+        quantity: 1,
+      },
+      {
+        id: 'p4',
+        name: 'Air Filter',
+        brand: 'Mann Filter',
+        price: 450.00,
+        quantity: 1,
+      },
+      {
+        id: 'p5',
+        name: 'Spark Plugs Set',
+        brand: 'NGK',
+        price: 800.00,
+        quantity: 4,
+      },
+      {
+        id: 'p6',
+        name: 'Coolant',
+        brand: 'Castrol',
+        price: 350.00,
+        quantity: 2,
+      },
+      {
+        id: 'p7',
+        name: 'Brake Fluid',
+        brand: 'Continental',
+        price: 280.00,
+        quantity: 1,
+      },
+    ],
+  },
+  {
+    id: '2',
+    vehicleName: 'Toyota Crysta',
+    plateNumber: 'MP09-GP4567',
+    orderId: 'ET/ORD/24-25/01255',
+    placedDate: '5 dec 2025',
+    deliveryDate: '12 dec 2025',
+    totalAmount: 2750.50,
+    status: 'shipped',
+    orderedParts: [
+      {
+        id: 'p1',
+        name: 'Brake Pad Set (Front)',
+        brand: 'Brembo OEM',
+        price: 500.00,
+        quantity: 2,
+      },
+      {
+        id: 'p2',
+        name: 'Oil Filter (Synthetic)',
+        brand: 'Bosch After Market',
+        price: 1650.50,
+        quantity: 4,
+      },
+      {
+        id: 'p3',
+        name: 'Wiper Blade - Driver Side',
+        brand: 'Bosch OEM',
+        price: 600.00,
+        quantity: 1,
+      },
+    ],
+  },
+  {
+    id: '3',
+    vehicleName: 'Honda City',
+    plateNumber: 'MH02-AB1234',
+    orderId: 'ET/ORD/24-25/01256',
+    placedDate: '3 dec 2025',
+    deliveryDate: '10 dec 2025',
+    totalAmount: 4500.00,
+    status: 'delivered',
+    orderedParts: [
+      {
+        id: 'p1',
+        name: 'Brake Pad Set (Front)',
+        brand: 'Brembo OEM',
+        price: 500.00,
+        quantity: 2,
+      },
+      {
+        id: 'p2',
+        name: 'Oil Filter (Synthetic)',
+        brand: 'Bosch After Market',
+        price: 1650.50,
+        quantity: 4,
+      },
+      {
+        id: 'p3',
+        name: 'Wiper Blade - Driver Side',
+        brand: 'Bosch OEM',
+        price: 600.00,
+        quantity: 1,
+      },
+      {
+        id: 'p4',
+        name: 'Clutch Kit',
+        brand: 'Valeo',
+        price: 3200.00,
+        quantity: 1,
+      },
+      {
+        id: 'p5',
+        name: 'Timing Belt',
+        brand: 'Gates',
+        price: 1800.00,
+        quantity: 1,
+      },
+    ],
+  },
+  {
+    id: '4',
+    vehicleName: 'Maruti Swift',
+    plateNumber: 'DL08-CX9876',
+    orderId: 'ET/ORD/24-25/01257',
+    placedDate: '1 dec 2025',
+    deliveryDate: '8 dec 2025',
+    totalAmount: 1850.00,
+    status: 'delivered',
+    orderedParts: [
+      {
+        id: 'p1',
+        name: 'Engine Oil 5W-30',
+        brand: 'Castrol',
+        price: 850.00,
+        quantity: 4,
+      },
+      {
+        id: 'p2',
+        name: 'Oil Filter',
+        brand: 'Bosch',
+        price: 250.00,
+        quantity: 1,
+      },
+    ],
+  },
+  {
+    id: '5',
+    vehicleName: 'Hyundai Creta',
+    plateNumber: 'KA05-MN5678',
+    orderId: 'ET/ORD/24-25/01258',
+    placedDate: '6 dec 2025',
+    deliveryDate: '13 dec 2025',
+    totalAmount: 5200.00,
+    status: 'in-process',
+    orderedParts: [
+      {
+        id: 'p1',
+        name: 'Suspension Kit - Front',
+        brand: 'Monroe',
+        price: 3500.00,
+        quantity: 1,
+      },
+      {
+        id: 'p2',
+        name: 'Wheel Bearing',
+        brand: 'SKF',
+        price: 850.00,
+        quantity: 2,
+      },
+      {
+        id: 'p3',
+        name: 'Ball Joint',
+        brand: 'Moog',
+        price: 450.00,
+        quantity: 2,
+      },
+    ],
+  },
+];
 
 export default function OrdersPage() {
+  const [orders] = useState<Order[]>(mockOrders);
+
+  const handleTrackOrder = (orderId: string) => {
+    console.log('Track order:', orderId);
+    // TODO: Navigate to order tracking page
+  };
+
+  const handleDownloadInvoice = (orderId: string) => {
+    console.log('Download invoice:', orderId);
+    // TODO: Trigger invoice download
+  };
+
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-between overflow-x-hidden">
+    <div className="min-h-screen bg-[#f5f5f5] flex flex-col justify-between overflow-x-hidden">
       {/* Sidebar for desktop/tablet */}
       <Sidebar />
       
       {/* Main content area with padding for sidebar on desktop */}
       <div className="md:pl-[240px] lg:pl-[280px] flex-1">
         {/* Inner container for mobile centering */}
-        <div className="max-w-[440px] md:max-w-none mx-auto md:mx-0 flex-1 flex flex-col">
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col items-center justify-center p-6 mb-[80px] md:mb-0">
-            
-            {/* Animated Icon Container */}
-            <div className="mb-8 relative">
-              <div className="absolute inset-0 bg-[#e5383b] opacity-5 rounded-full blur-2xl transform scale-150"></div>
-              <RocketIcon />
-            </div>
-
-            {/* Title */}
+        <div className="max-w-[500px] md:max-w-none mx-auto md:mx-0 flex-1 flex flex-col">
+          
+          {/* Header */}
+          <div className="bg-white px-4 py-4 border-b border-[#e0e0e0]">
             <h1 
-              className="text-[32px] font-bold text-[#1a1a1a] mb-3 text-center tracking-tight"
+              className="text-[24px] font-bold text-[#1a1a1a]"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              Something New is<br />
-              <span className="text-[#e5383b]">Coming Soon!</span>
+              Orders
             </h1>
-
-            {/* Description */}
             <p 
-              className="text-[16px] text-[#828282] text-center max-w-[280px] leading-relaxed"
+              className="text-[14px] text-[#757575] mt-1"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              We are currently working on this feature to bring you a better experience.
+              Track and manage your orders
             </p>
+          </div>
 
-            {/* Notify Button (Optional visual element) */}
-            <div className="mt-10">
-              <button 
-                className="px-8 py-3 bg-[#f8f8f8] text-[#4c4c4c] font-semibold rounded-full border border-[#f0f0f0] text-[14px] hover:bg-[#f0f0f0] transition-colors"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              >
-                Notify Me When Ready
-              </button>
-            </div>
+          {/* Orders List */}
+          <div className="flex-1 p-4 pb-[100px] md:pb-4 space-y-4">
+            {orders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onTrackOrder={handleTrackOrder}
+                onDownloadInvoice={handleDownloadInvoice}
+              />
+            ))}
           </div>
 
           {/* Navigation Bar */}

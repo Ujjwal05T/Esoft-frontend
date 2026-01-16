@@ -21,7 +21,7 @@ interface SplashProviderProps {
 
 export function SplashProvider({
   children,
-  duration = 3000,
+  duration = 1500,
   showOnMount = true,
 }: SplashProviderProps) {
   // Always show splash on mount/refresh when showOnMount is true
