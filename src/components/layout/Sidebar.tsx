@@ -45,6 +45,11 @@ export default function Sidebar() {
       iconSrc: '/assets/icons/inquiry.svg',
       href: `/${role}/inquiries`,
     },
+    (role === 'owner' ? {
+      label: 'My Account',
+      iconSrc: '/assets/icons/user.svg',
+      href: `/${role}/profile`,
+    } : undefined),
   ].filter((item) => item !== undefined);
 
   return (

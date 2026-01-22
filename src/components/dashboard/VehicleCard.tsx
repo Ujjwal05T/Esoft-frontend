@@ -2,7 +2,7 @@ import Image from 'next/image';
 
 interface VehicleCardProps {
   plateNumber: string;
-  year: number;
+  year: number|undefined;
   make: string;
   model: string;
   specs: string;

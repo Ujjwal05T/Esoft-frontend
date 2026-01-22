@@ -13,6 +13,7 @@ import RaiseDisputeOverlay from '@/components/overlays/RaiseDisputeOverlay';
 import RequestPartOverlay from '@/components/overlays/RequestPartOverlay';
 import EstimationOverlay from '@/components/overlays/EstimationOverlay';
 import NewJobCardOverlay from '@/components/overlays/NewJobCardOverlay';
+import GateOutOverlay from '@/components/overlays/GateOutOverlay';
 import OrderCard, { type Order } from '@/components/dashboard/OrderCard';
 import QuoteCard, { type Quote } from '@/components/dashboard/QuoteCard';
 
@@ -663,6 +664,7 @@ export default function VehicleDetailPage() {
   const [showRequestPartOverlay, setShowRequestPartOverlay] = useState(false);
   const [showEstimationOverlay, setShowEstimationOverlay] = useState(false);
   const [showNewJobCardOverlay, setShowNewJobCardOverlay] = useState(false);
+  const [showGateOutOverlay, setShowGateOutOverlay] = useState(false);
   const [expandedQuotes, setExpandedQuotes] = useState<{ [key: string]: boolean }>({});
 
   if (!vehicle) {
@@ -1123,6 +1125,10 @@ export default function VehicleDetailPage() {
       {/* Floating Action Button */}
       <FloatingActionButton
         navigationOptions={[
+          {
+            label: 'Gate out',
+            onClick: () => setShowGateOutOverlay(true),
+          },
          {
             label: 'Generate Estimate',
             onClick: () => setShowEstimationOverlay(true),
@@ -1218,6 +1224,24 @@ export default function VehicleDetailPage() {
         onAddJob={(data) => {
           console.log('New job created:', data);
           setShowNewJobCardOverlay(false);
+        }}
+      />
+
+      {/* Gate Out Overlay */}
+      <GateOutOverlay
+        isOpen={showGateOutOverlay}
+        onClose={() => setShowGateOutOverlay(false)}
+        onComplete={(data) => {
+          console.log('Gate Out completed:', data);
+          setShowGateOutOverlay(false);
+        }}
+        vehicleData={{
+          plateNumber: vehicle.plateNumber,
+          year: vehicle.year,
+          make: vehicle.make,
+          model: vehicle.model,
+          specs: vehicle.specs,
+          imageUrl: '/assets/images/car-suv.png',
         }}
       />
 

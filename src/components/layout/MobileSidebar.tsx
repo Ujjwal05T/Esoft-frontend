@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import DeleteAccountOverlay from '../overlays/DeleteAccountOverlay';
 import ContactETNAOverlay from '../overlays/ContactETNAOverlay';
+import { useRouter } from 'next/navigation';
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -203,6 +204,7 @@ const BackArrowIcon = () => (
 export default function MobileSidebar({ isOpen, onClose, user }: MobileSidebarProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const router = useRouter();
 
   const defaultUser = {
     name: 'Alex',
@@ -232,7 +234,11 @@ export default function MobileSidebar({ isOpen, onClose, user }: MobileSidebarPr
     {
       icon: <PersonIcon />,
       label: 'My account',
-      href: '/owner/account',
+      href: '/owner/profile',
+      onClick() {
+        router.push('/owner/profile');
+        onClose();
+      },
     },
     {
       icon: <StaffIcon />,

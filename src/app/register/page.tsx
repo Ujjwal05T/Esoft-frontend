@@ -4,6 +4,11 @@ import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FloatingInput from '@/components/ui/FloatingInput';
+import { 
+  sendRegistrationOtp, 
+  verifyRegistrationOtp, 
+  submitWorkshopRegistration 
+} from '@/services/api';
 
 type RegistrationStep = 
   | 'enter-mobile'     // Step 1: Enter Mobile Number
@@ -93,6 +98,7 @@ export default function RegisterPage() {
     fullName: '',
     contactNumber: '',
     email: '',
+    aadharNumber: '',
     workshopName: '',
     address: '',
     landmark: '',
@@ -107,6 +113,7 @@ export default function RegisterPage() {
     workshopDetails.fullName.trim() !== '' &&
     workshopDetails.contactNumber.trim() !== '' &&
     workshopDetails.email.trim() !== '' &&
+    workshopDetails.aadharNumber.trim() !== '' &&
     workshopDetails.workshopName.trim() !== '' &&
     workshopDetails.address.trim() !== '' &&
     workshopDetails.pinCode.trim() !== '' &&
@@ -119,11 +126,12 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // TODO: Implement actual OTP sending API call
-      // const result = await sendOTP(mobileNumber);
+      const result = await sendRegistrationOtp(mobileNumber);
       
-      // Simulating API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!result.success) {
+        setError(result.error || 'Failed to send OTP. Please try again.');
+        return;
+      }
       
       setCurrentStep('verify-otp');
     } catch (err) {
@@ -141,11 +149,12 @@ export default function RegisterPage() {
 
     try {
       const otpCode = otp.join('');
-      // TODO: Implement actual OTP verification API call
-      // const result = await verifyOTP(mobileNumber, otpCode);
+      const result = await verifyRegistrationOtp(mobileNumber, otpCode);
       
-      // Simulating API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!result.success) {
+        setError(result.error || 'Invalid OTP. Please try again.');
+        return;
+      }
       
       // Pre-fill contact number from mobile
       setWorkshopDetails(prev => ({ ...prev, contactNumber: mobileNumber }));
@@ -164,14 +173,22 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // TODO: Implement actual registration API call
-      // const result = await registerWorkshop({
-      //   mobileNumber,
-      //   ...workshopDetails
-      // });
+      const result = await submitWorkshopRegistration({
+        ownerName: workshopDetails.fullName,
+        phoneNumber: workshopDetails.contactNumber,
+        email: workshopDetails.email || undefined,
+        aadhaarNumber: workshopDetails.aadharNumber,
+        workshopName: workshopDetails.workshopName,
+        address: workshopDetails.address,
+        landmark: workshopDetails.landmark || undefined,
+        pinCode: workshopDetails.pinCode,
+        city: workshopDetails.city,
+      });
 
-      // Simulating API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!result.success) {
+        setError(result.error || 'Failed to submit registration. Please try again.');
+        return;
+      }
       
       // Show success screen
       setCurrentStep('request-sent');
@@ -287,6 +304,13 @@ export default function RegisterPage() {
                 label="Email (Required)"
                 value={workshopDetails.email}
                 onChange={(v) => setWorkshopDetails(prev => ({ ...prev, email: v }))}
+                required
+              />
+
+              <FloatingInput
+                label="Aadhar Number (Required)"
+                value={workshopDetails.aadharNumber}
+                onChange={(v) => setWorkshopDetails(prev => ({ ...prev, aadharNumber: v }))}
                 required
               />
 

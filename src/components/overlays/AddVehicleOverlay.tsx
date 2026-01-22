@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import CameraScannerOverlay from './CameraScannerOverlay';
 import VehicleCard from '@/components/dashboard/VehicleCard';
 import Image from 'next/image';
+// Backend API imports removed - using static dummy data
 
 interface AddVehicleOverlayProps {
   isOpen: boolean;
@@ -214,14 +215,15 @@ export default function AddVehicleOverlay({
   onScanRCCard,
   onAddManually,
 }: AddVehicleOverlayProps) {
-  // View state: 'search' | 'manual' | 'form' | 'success'
-  const [currentView, setCurrentView] = useState<'search' | 'manual' | 'form' | 'success'>('search');
+  // View state: 'search' | 'manual' | 'form' | 'gatein' | 'success'
+  const [currentView, setCurrentView] = useState<'search' | 'manual' | 'form' | 'gatein' | 'success'>('search');
   
   // Search view state
   const [plateNumber, setPlateNumber] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [scanMode, setScanMode] = useState<'plate' | 'rc'>('plate');
+  const [isScanning, setIsScanning] = useState(false);
   
   // Manual entry view state
   const [selectedBrand, setSelectedBrand] = useState('');
@@ -236,19 +238,27 @@ export default function AddVehicleOverlay({
   const [showVariantDropdown, setShowVariantDropdown] = useState(false);
   const [hasAttemptedManualSubmit, setHasAttemptedManualSubmit] = useState(false);
   
-  // Form view state (owner details)
+  // Form view state (owner details) - Updated per Figma design
   const [vehicleData, setVehicleData] = useState<VehicleData | null>(null);
+  const [registrationName, setRegistrationName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
-  const [odometerReading, setOdometerReading] = useState('');
-  const [observations, setObservations] = useState('');
+  const [email, setEmail] = useState('');
+  const [gstNumber, setGstNumber] = useState('');
+  const [isGstVerified, setIsGstVerified] = useState(false);
+  const [insuranceProvider, setInsuranceProvider] = useState('');
+  const [showInsuranceDropdown, setShowInsuranceDropdown] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  
-  // Audio recording state
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Gate In view state
+  const [driverName, setDriverName] = useState('');
+  const [driverContact, setDriverContact] = useState('');
+  const [gateInDateTime, setGateInDateTime] = useState('');
+  const [odometerReading, setOdometerReading] = useState('');
+  const [fuelLevel, setFuelLevel] = useState(0); // 0-100 percentage
+  const [problemShared, setProblemShared] = useState('');
+  const [vehicleImages, setVehicleImages] = useState<string[]>([]);
+  const [hasAttemptedGateIn, setHasAttemptedGateIn] = useState(false);
 
   // Get available models based on selected brand
   const availableModels = selectedBrand ? (modelOptions[selectedBrand] || []) : [];
@@ -291,14 +301,39 @@ export default function AddVehicleOverlay({
   };
 
   const handleCameraCapture = (imageSrc: string) => {
-    console.log(`Captured ${scanMode} image:`, imageSrc);
+    console.log(`Captured ${scanMode} image, using dummy data...`);
     setShowCameraScanner(false);
     
-    const mockPlate = 'MP 09 CY 1321';
-    setPlateNumber(mockPlate);
-    const data = fetchVehicleData(mockPlate);
-    setVehicleData(data);
-    setCurrentView('form');
+    // Simulate scanning delay with dummy data
+    setIsScanning(true);
+    
+    setTimeout(() => {
+      // Use static dummy data for scanned result
+      const dummyPlateNumber = 'MP 09 GL 5656';
+      setPlateNumber(dummyPlateNumber);
+      
+      // If RC card scan, also fill in other dummy details
+      if (scanMode === 'rc') {
+        setSelectedBrand('Toyota');
+        setSelectedModel('Innova Crysta');
+        setSelectedYear('2018');
+        setSelectedVariant('Crysta ZX');
+        setChassisNumber('MHFAB1234567890');
+        setOwnerName('John Doe');
+      }
+      
+      // Create vehicle data and go to form
+      const data: VehicleData = {
+        plateNumber: dummyPlateNumber,
+        year: 2018,
+        make: 'Toyota',
+        model: 'Crysta',
+        specs: '2.4L ZX MT/Diesel',
+      };
+      setVehicleData(data);
+      setCurrentView('form');
+      setIsScanning(false);
+    }, 1500); // Simulate 1.5s processing delay
   };
 
   const handleAddManually = () => {
@@ -327,7 +362,19 @@ export default function AddVehicleOverlay({
   };
 
   const handleBack = () => {
-    if (currentView === 'form') {
+    if (currentView === 'gatein') {
+      // Go back to form view
+      setCurrentView('form');
+      // Reset Gate In form
+      setDriverName('');
+      setDriverContact('');
+      setGateInDateTime('');
+      setOdometerReading('');
+      setFuelLevel(0);
+      setProblemShared('');
+      setVehicleImages([]);
+      setHasAttemptedGateIn(false);
+    } else if (currentView === 'form') {
       // Go back to manual if we came from there, otherwise search
       if (selectedBrand && selectedModel) {
         setCurrentView('manual');
@@ -335,12 +382,14 @@ export default function AddVehicleOverlay({
         setCurrentView('search');
       }
       setVehicleData(null);
+      setRegistrationName('');
       setOwnerName('');
       setContactNumber('');
-      setOdometerReading('');
-      setObservations('');
+      setEmail('');
+      setGstNumber('');
+      setIsGstVerified(false);
+      setInsuranceProvider('');
       setHasAttemptedSubmit(false);
-      setAudioBlob(null);
     } else if (currentView === 'manual') {
       setCurrentView('search');
       // Reset manual form
@@ -373,55 +422,36 @@ export default function AddVehicleOverlay({
     setShowModelDropdown(false);
     setShowYearDropdown(false);
     setShowVariantDropdown(false);
+    setShowInsuranceDropdown(false);
   };
 
-  // Audio recording
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+  const handleVerifyGst = () => {
+    // In a real app, this would call an API to verify the GST number
+    if (gstNumber.trim()) {
+      setIsGstVerified(true);
     }
   };
 
   const handleSendRequest = () => {
     setHasAttemptedSubmit(true);
 
-    if (!ownerName.trim() || !contactNumber.trim()) {
+    // Validate required fields
+    if (!registrationName.trim() || !ownerName.trim() || !contactNumber.trim()) {
       return;
     }
 
-    if (onSubmitRequest && vehicleData) {
+    if (!vehicleData) {
+      return;
+    }
+
+    // Call the parent callback if provided (using static/dummy approach)
+    if (onSubmitRequest) {
       onSubmitRequest({
         plateNumber: vehicleData.plateNumber,
         ownerName,
         contactNumber,
-        odometerReading,
-        observations,
-        audioBlob: audioBlob || undefined,
+        odometerReading: '', // Not used in new design
+        observations: '', // Not used in new design
         brand: selectedBrand || undefined,
         model: selectedModel || undefined,
         year: selectedYear || undefined,
@@ -430,6 +460,20 @@ export default function AddVehicleOverlay({
       });
     }
     
+    // Navigate to Gate In view (next step)
+    setCurrentView('gatein');
+    // Pre-fill driver contact with owner's contact number
+    setDriverContact(contactNumber);
+  };
+
+  const handleGateIn = () => {
+    setHasAttemptedGateIn(true);
+
+    // Validate required fields for Gate In
+    if (!driverName.trim() || !driverContact.trim()) {
+      return;
+    }
+
     // Show success view
     setCurrentView('success');
   };
@@ -451,12 +495,14 @@ export default function AddVehicleOverlay({
       setPlateNumber('');
       setShowCameraScanner(false);
       setVehicleData(null);
+      setRegistrationName('');
       setOwnerName('');
       setContactNumber('');
-      setOdometerReading('');
-      setObservations('');
+      setEmail('');
+      setGstNumber('');
+      setIsGstVerified(false);
+      setInsuranceProvider('');
       setHasAttemptedSubmit(false);
-      setAudioBlob(null);
       // Reset manual form
       setSelectedBrand('');
       setSelectedModel('');
@@ -465,6 +511,15 @@ export default function AddVehicleOverlay({
       setVehicleNumber('');
       setChassisNumber('');
       setHasAttemptedManualSubmit(false);
+      // Reset Gate In form
+      setDriverName('');
+      setDriverContact('');
+      setGateInDateTime('');
+      setOdometerReading('');
+      setFuelLevel(0);
+      setProblemShared('');
+      setVehicleImages([]);
+      setHasAttemptedGateIn(false);
       closeAllDropdowns();
     }
   }, [isOpen]);
@@ -929,116 +984,129 @@ export default function AddVehicleOverlay({
                 </button>
               </div>
             </div>
-          ) : (
-            /* ========== FORM VIEW (Owner Details) ========== */
-            <div className="px-[20px] pb-[24px]">
+          ) : /* ========== GATE IN VIEW ========== */
+          currentView === 'gatein' ? (
+            <div className="px-[16px] pb-[24px]">
               {/* Header */}
-              <div className="flex items-center gap-[12px] pb-[16px]">
-                <button onClick={handleBack} className="p-[4px]">
+              <div className="flex items-center gap-[16px] pb-[24px]">
+                <button onClick={handleBack} className="shrink-0">
                   <BackArrowIcon />
                 </button>
                 <h2
-                  className="font-bold text-[22px] text-black"
+                  className="font-semibold text-[24px] text-black flex-1"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
-                  Add Vehicle
+                  Gate In
                 </h2>
               </div>
 
-              {/* Vehicle Card */}
-              {vehicleData && (
-                <div className="mb-[20px]">
-                  <VehicleCard
-                    plateNumber={vehicleData.plateNumber}
-                    year={vehicleData.year}
-                    make={vehicleData.make}
-                    model={vehicleData.model}
-                    specs={vehicleData.specs}
-                    variant="default"
-                  />
-                </div>
-              )}
-
               {/* Form Fields */}
               <div className="flex flex-col gap-[16px]">
-                {/* Owner Name Input */}
+                {/* Driver's Name Input */}
                 <div className="relative">
                   <div
                     className={`border rounded-[8px] px-[16px] py-[14px] transition-colors ${
-                      hasAttemptedSubmit && !ownerName.trim()
+                      hasAttemptedGateIn && !driverName.trim()
                         ? 'border-[#e5383b] bg-[#ffe0e0]'
-                        : ownerName
+                        : driverName
                         ? 'border-[#e5383b]'
                         : 'border-[#d3d3d3]'
                     }`}
                   >
-                    {ownerName && (
+                    {driverName && (
                       <label
                         className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
                         style={{ fontFamily: "'Inter', sans-serif" }}
                       >
-                        Owner Name
+                        Drivers Name
                       </label>
                     )}
                     <input
                       type="text"
-                      value={ownerName}
-                      onChange={(e) => setOwnerName(e.target.value)}
-                      placeholder={ownerName ? '' : 'Owner Name'}
+                      value={driverName}
+                      onChange={(e) => setDriverName(e.target.value)}
+                      placeholder={driverName ? '' : 'Drivers Name'}
                       className={`w-full outline-none text-[15px] text-black placeholder:text-[#828282] ${
-                        hasAttemptedSubmit && !ownerName.trim() ? 'bg-transparent' : ''
+                        hasAttemptedGateIn && !driverName.trim() ? 'bg-transparent' : ''
                       }`}
                       style={{ fontFamily: "'Inter', sans-serif" }}
                     />
                   </div>
-                  {hasAttemptedSubmit && !ownerName.trim() && (
+                  {hasAttemptedGateIn && !driverName.trim() && (
                     <p
                       className="text-[12px] text-[#e5383b] mt-[4px]"
                       style={{ fontFamily: "'Inter', sans-serif" }}
                     >
-                      Please enter owner name
+                      Please enter driver&apos;s name
                     </p>
                   )}
                 </div>
 
-                {/* Contact Number Input */}
+                {/* Driver's Contact Number Input */}
                 <div className="relative">
                   <div
                     className={`border rounded-[8px] px-[16px] py-[14px] transition-colors ${
-                      hasAttemptedSubmit && !contactNumber.trim()
+                      hasAttemptedGateIn && !driverContact.trim()
                         ? 'border-[#e5383b] bg-[#ffe0e0]'
-                        : contactNumber
+                        : driverContact
                         ? 'border-[#e5383b]'
                         : 'border-[#d3d3d3]'
                     }`}
                   >
-                    {contactNumber && (
+                    {driverContact && (
                       <label
                         className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
                         style={{ fontFamily: "'Inter', sans-serif" }}
                       >
-                        Contact Number
+                        Drivers Contact Number
                       </label>
                     )}
                     <input
                       type="tel"
-                      value={contactNumber}
-                      onChange={(e) => setContactNumber(e.target.value)}
-                      placeholder={contactNumber ? '' : 'Contact Number'}
+                      value={driverContact}
+                      onChange={(e) => setDriverContact(e.target.value)}
+                      placeholder={driverContact ? '' : 'Drivers Contact Number'}
                       className={`w-full outline-none text-[15px] text-black placeholder:text-[#828282] ${
-                        hasAttemptedSubmit && !contactNumber.trim() ? 'bg-transparent' : ''
+                        hasAttemptedGateIn && !driverContact.trim() ? 'bg-transparent' : ''
                       }`}
                       style={{ fontFamily: "'Inter', sans-serif" }}
                     />
                   </div>
-                  {hasAttemptedSubmit && !contactNumber.trim() && (
+                  {hasAttemptedGateIn && !driverContact.trim() && (
                     <p
                       className="text-[12px] text-[#e5383b] mt-[4px]"
                       style={{ fontFamily: "'Inter', sans-serif" }}
                     >
-                      Please enter contact number
+                      Please enter driver&apos;s contact number
                     </p>
                   )}
+                </div>
+
+                {/* Gate In Date and Time */}
+                <div className="relative">
+                  <div
+                    className={`border rounded-[8px] px-[16px] py-[14px] transition-colors flex items-center justify-between ${
+                      gateInDateTime ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                    }`}
+                  >
+                    {gateInDateTime && (
+                      <label
+                        className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        Gate In Date and time
+                      </label>
+                    )}
+                    <input
+                      type="text"
+                      value={gateInDateTime || new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                      onChange={(e) => setGateInDateTime(e.target.value)}
+                      placeholder="Gate In Date and time"
+                      className="flex-1 outline-none text-[15px] text-black placeholder:text-[#828282]"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    />
+                    <ChevronDownIcon />
+                  </div>
                 </div>
 
                 {/* Odometer Reading Input */}
@@ -1067,76 +1135,428 @@ export default function AddVehicleOverlay({
                   </div>
                 </div>
 
-                {/* Observations Input with Mic */}
+                {/* Fuel Reading Gauge */}
+                <div className="relative">
+                  <div className="border border-[#d3d3d3] rounded-[8px] px-[12px] py-[20px]">
+                    <label
+                      className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[10px] text-[#828282]"
+                      style={{ fontFamily: "'Poppins', sans-serif" }}
+                    >
+                      Fuel Reading
+                    </label>
+                    <div className="flex items-center gap-0 relative">
+                      {/* Orange fuel indicator - width based on fuel level */}
+                      <div 
+                        className="h-[53px] bg-[#ffad2a] rounded-[6.5px] transition-all duration-200"
+                        style={{ width: `${Math.max(31, (fuelLevel / 100) * 318 + 31)}px` }}
+                      />
+                      {/* Black divider line */}
+                      <div className="w-[6px] h-[33px] bg-black rounded-[6.5px] -ml-[2px]" />
+                      {/* Gray remaining track */}
+                      <div 
+                        className="h-[53px] bg-[#f0f0f0] rounded-[6.5px] flex-1"
+                        style={{ marginLeft: '-2px' }}
+                      />
+                      {/* Invisible slider overlay */}
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={fuelLevel}
+                        onChange={(e) => setFuelLevel(parseInt(e.target.value))}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Problem Shared with Record Button */}
                 <div className="relative">
                   <div
-                    className={`border rounded-[8px] px-[16px] py-[14px] transition-colors flex items-center gap-[12px] ${
-                      observations ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                    className={`border rounded-[8px] px-[16px] py-[10px] transition-colors flex items-center justify-between ${
+                      problemShared ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
                     }`}
                   >
-                    {observations && (
-                      <label
-                        className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        Observations
-                      </label>
-                    )}
                     <input
                       type="text"
-                      value={observations}
-                      onChange={(e) => setObservations(e.target.value)}
-                      placeholder={observations ? '' : 'Observations'}
+                      value={problemShared}
+                      onChange={(e) => setProblemShared(e.target.value)}
+                      placeholder="Problem Shared"
                       className="flex-1 outline-none text-[15px] text-black placeholder:text-[#828282]"
                       style={{ fontFamily: "'Inter', sans-serif" }}
                     />
                     <button
-                      onClick={isRecording ? stopRecording : startRecording}
-                      className={`p-[4px] rounded-full transition-colors ${
-                        isRecording ? 'bg-[#e5383b]/10' : 'hover:bg-gray-100'
-                      }`}
+                      className="flex items-center gap-[6px] bg-white border border-[#e5383b] px-[12px] py-[6px] rounded-[6px] text-[#e5383b] hover:bg-[#fff5f5] transition-colors"
                     >
-                      <MicrophoneIcon color={isRecording ? '#e5383b' : '#e5383b'} />
+                      <MicrophoneIcon color="#e5383b" />
+                      <span
+                        className="text-[14px] font-medium"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        Record
+                      </span>
                     </button>
                   </div>
-                  {isRecording && (
+                </div>
+
+                {/* Vehicle Images Upload */}
+                <div className="flex gap-[12px] overflow-x-auto pb-[8px]">
+                  {vehicleImages.map((img, index) => (
+                    <div key={index} className="relative shrink-0 w-[100px] h-[80px] rounded-[8px] overflow-hidden">
+                      <Image
+                        src={img}
+                        alt={`Vehicle ${index + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                      <button
+                        onClick={() => setVehicleImages(vehicleImages.filter((_, i) => i !== index))}
+                        className="absolute bottom-[4px] right-[4px] w-[24px] h-[24px] bg-[#e5383b] rounded-[4px] flex items-center justify-center"
+                      >
+                        <svg width="12" height="14" viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M1 3.5H11M4.5 6V10.5M7.5 6V10.5M2 3.5L2.5 11.5C2.5 12.0523 2.94772 12.5 3.5 12.5H8.5C9.05228 12.5 9.5 12.0523 9.5 11.5L10 3.5M4 3.5V2C4 1.44772 4.44772 1 5 1H7C7.55228 1 8 1.44772 8 2V3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  {/* Add Image Button */}
+                  <button
+                    onClick={() => {
+                      // In a real app, this would open file picker
+                      // For demo, we'll add a placeholder image
+                      setVehicleImages([...vehicleImages, '/assets/images/car-suv.png']);
+                    }}
+                    className="shrink-0 w-[100px] h-[80px] border-2 border-dashed border-[#d3d3d3] rounded-[8px] flex items-center justify-center hover:border-[#e5383b] transition-colors"
+                  >
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M16 8V24M8 16H24" stroke="#E5383B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Gate In Button */}
+                <div className="pt-[16px] shadow-[0px_0px_30px_0px_white]">
+                  <button
+                    onClick={handleGateIn}
+                    disabled={!driverName.trim() || !driverContact.trim()}
+                    className={`w-full h-[56px] rounded-[8px] flex items-center justify-center transition-colors ${
+                      driverName.trim() && driverContact.trim()
+                        ? 'bg-[#e5383b] hover:bg-[#c82d30]'
+                        : 'bg-[#c3c3c3] cursor-not-allowed'
+                    }`}
+                  >
+                    <span
+                      className="text-white font-normal text-[15px] uppercase tracking-[-0.01px]"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      GATE IN
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ):(
+            /* ========== FORM VIEW (Owner Details) ========== */
+            <div className="px-[16px] pb-[24px]">
+              {/* Header */}
+              <div className="flex items-center gap-[16px] pb-[24px]">
+                <button onClick={handleBack} className="shrink-0">
+                  <BackArrowIcon />
+                </button>
+                <h2
+                  className="font-semibold text-[24px] text-black flex-1"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  Add New Vehicle
+                </h2>
+              </div>
+
+              {/* Vehicle Card */}
+              {vehicleData && (
+                <div className="mb-[24px]">
+                  <VehicleCard
+                    plateNumber={vehicleData.plateNumber}
+                    year={vehicleData.year}
+                    make={vehicleData.make}
+                    model={vehicleData.model}
+                    specs={vehicleData.specs}
+                    variant="default"
+                  />
+                </div>
+              )}
+
+              {/* Form Fields */}
+              <div className="flex flex-col gap-[16px]">
+                {/* Registration Name Input */}
+                <div className="relative">
+                  <div
+                    className={`border rounded-[8px] px-[16px] py-[14px] transition-colors flex items-center justify-between ${
+                      hasAttemptedSubmit && !registrationName.trim()
+                        ? 'border-[#e5383b] bg-[#ffe0e0]'
+                        : registrationName
+                        ? 'border-[#e5383b]'
+                        : 'border-[#d3d3d3]'
+                    }`}
+                  >
+                    {registrationName && (
+                      <label
+                        className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        Registration Name
+                      </label>
+                    )}
+                    <input
+                      type="text"
+                      value={registrationName}
+                      onChange={(e) => setRegistrationName(e.target.value)}
+                      placeholder={registrationName ? '' : 'Registration Name'}
+                      className={`flex-1 outline-none text-[15px] text-black placeholder:text-[#828282] ${
+                        hasAttemptedSubmit && !registrationName.trim() ? 'bg-transparent' : ''
+                      }`}
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    />
+                  </div>
+                  {hasAttemptedSubmit && !registrationName.trim() && (
                     <p
                       className="text-[12px] text-[#e5383b] mt-[4px]"
                       style={{ fontFamily: "'Inter', sans-serif" }}
                     >
-                      Recording... Tap mic to stop
+                      Please enter registration name
                     </p>
                   )}
                 </div>
 
-                {/* Send Request Button */}
-                <button
-                  onClick={handleSendRequest}
-                  className="w-full h-[52px] bg-[#e5383b] rounded-[8px] flex items-center justify-center hover:bg-[#c82d30] transition-colors mt-[8px]"
-                >
-                  <span
-                    className="text-white font-semibold text-[16px] uppercase tracking-[1px]"
-                    style={{ fontFamily: "'Inter', sans-serif" }}
+                {/* Owner Name Input */}
+                <div className="relative">
+                  <div
+                    className={`border rounded-[8px] px-[16px] py-[14px] transition-colors flex items-center justify-between ${
+                      hasAttemptedSubmit && !ownerName.trim()
+                        ? 'border-[#e5383b] bg-[#ffe0e0]'
+                        : ownerName
+                        ? 'border-[#e5383b]'
+                        : 'border-[#d3d3d3]'
+                    }`}
                   >
-                    Send Request
-                  </span>
-                </button>
+                    {ownerName && (
+                      <label
+                        className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        Owner Name
+                      </label>
+                    )}
+                    <input
+                      type="text"
+                      value={ownerName}
+                      onChange={(e) => setOwnerName(e.target.value)}
+                      placeholder={ownerName ? '' : 'Owner Name'}
+                      className={`flex-1 outline-none text-[15px] text-black placeholder:text-[#828282] ${
+                        hasAttemptedSubmit && !ownerName.trim() ? 'bg-transparent' : ''
+                      }`}
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    />
+                  </div>
+                  {hasAttemptedSubmit && !ownerName.trim() && (
+                    <p
+                      className="text-[12px] text-[#e5383b] mt-[4px]"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Please enter owner name
+                    </p>
+                  )}
+                </div>
 
-                {/* Edit Number Plate Link */}
-                <button
-                  onClick={handleEditPlateNumber}
-                  className="w-full py-[12px] flex items-center justify-center"
-                >
-                  <span
-                    className="text-[#e5383b] font-semibold text-[14px] uppercase tracking-[0.5px]"
-                    style={{ fontFamily: "'Inter', sans-serif" }}
+                {/* Contact Number Input */}
+                <div className="relative">
+                  <div
+                    className={`border rounded-[8px] px-[16px] py-[14px] transition-colors flex items-center justify-between ${
+                      hasAttemptedSubmit && !contactNumber.trim()
+                        ? 'border-[#e5383b] bg-[#ffe0e0]'
+                        : contactNumber
+                        ? 'border-[#e5383b]'
+                        : 'border-[#d3d3d3]'
+                    }`}
                   >
-                    Edit Number Plate
-                  </span>
-                </button>
+                    {contactNumber && (
+                      <label
+                        className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        Contact Number
+                      </label>
+                    )}
+                    <input
+                      type="tel"
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value)}
+                      placeholder={contactNumber ? '' : 'Contact Number'}
+                      className={`flex-1 outline-none text-[15px] text-black placeholder:text-[#828282] ${
+                        hasAttemptedSubmit && !contactNumber.trim() ? 'bg-transparent' : ''
+                      }`}
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    />
+                  </div>
+                  {hasAttemptedSubmit && !contactNumber.trim() && (
+                    <p
+                      className="text-[12px] text-[#e5383b] mt-[4px]"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Please enter contact number
+                    </p>
+                  )}
+                </div>
+
+                {/* Email Id Input */}
+                <div className="relative">
+                  <div
+                    className={`border rounded-[8px] px-[16px] py-[14px] transition-colors flex items-center justify-between ${
+                      email ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                    }`}
+                  >
+                    {email && (
+                      <label
+                        className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        Email Id
+                      </label>
+                    )}
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={email ? '' : 'Email Id'}
+                      className="flex-1 outline-none text-[15px] text-black placeholder:text-[#828282]"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    />
+                  </div>
+                </div>
+
+                {/* GST NO. Input with Verify Button */}
+                <div className="relative">
+                  <div
+                    className={`border rounded-[8px] px-[16px] py-[10px] transition-colors flex items-center justify-between ${
+                      gstNumber ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                    }`}
+                  >
+                    {gstNumber && (
+                      <label
+                        className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        GST NO.
+                      </label>
+                    )}
+                    <input
+                      type="text"
+                      value={gstNumber}
+                      onChange={(e) => {
+                        setGstNumber(e.target.value.toUpperCase());
+                        setIsGstVerified(false); // Reset verification when GST number changes
+                      }}
+                      placeholder={gstNumber ? '' : 'GST NO.'}
+                      className="flex-1 outline-none text-[15px] text-black placeholder:text-[#828282]"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    />
+                    {isGstVerified ? (
+                      <span
+                        className="px-[16px] text-[14px] py-[3px] font-semibold text-[#e5383b]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        VERIFIED
+                      </span>
+                    ) : (
+                      <button
+                        onClick={handleVerifyGst}
+                        className="bg-[#e5383b] text-white px-[20px] py-[3px] rounded-[6px] hover:bg-[#c82d30] transition-colors"
+                      >
+                        <span
+                          className="text-[14px] font-medium "
+                          style={{ fontFamily: "'Inter', sans-serif" }}
+                        >
+                          Verify
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Insurance Provider Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      closeAllDropdowns();
+                      setShowInsuranceDropdown(!showInsuranceDropdown);
+                    }}
+                    className={`w-full border rounded-[8px] px-[16px] py-[14px] flex items-center justify-between transition-colors ${
+                      insuranceProvider ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                    }`}
+                  >
+                    {insuranceProvider && (
+                      <label
+                        className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        Insurance Provider
+                      </label>
+                    )}
+                    <span
+                      className={`text-[15px] ${insuranceProvider ? 'text-black' : 'text-[#828282]'}`}
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      {insuranceProvider || 'Insurance Provider'}
+                    </span>
+                    <ChevronDownIcon className={showInsuranceDropdown ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                  </button>
+
+                  {showInsuranceDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-[4px] bg-white border border-[#d3d3d3] rounded-[8px] shadow-lg z-10 max-h-[200px] overflow-y-auto">
+                      {['ICICI Lombard', 'HDFC ERGO', 'Bajaj Allianz', 'New India Assurance', 'United India Insurance', 'National Insurance'].map((provider) => (
+                        <button
+                          key={provider}
+                          onClick={() => {
+                            setInsuranceProvider(provider);
+                            setShowInsuranceDropdown(false);
+                          }}
+                          className="w-full px-[16px] py-[12px] text-left hover:bg-[#f5f5f5] border-b border-[#f0f0f0] last:border-b-0"
+                        >
+                          <span
+                            className="text-[14px] text-black"
+                            style={{ fontFamily: "'Inter', sans-serif" }}
+                          >
+                            {provider}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Proceed to Gate In Button */}
+                <div className="pt-[16px] shadow-[0px_0px_30px_0px_white]">
+                  <button
+                    onClick={handleSendRequest}
+                    disabled={!registrationName.trim() || !ownerName.trim() || !contactNumber.trim()}
+                    className={`w-full h-[56px] rounded-[8px] flex items-center justify-center transition-colors ${
+                      registrationName.trim() && ownerName.trim() && contactNumber.trim()
+                        ? 'bg-[#e5383b] hover:bg-[#c82d30]'
+                        : 'bg-[#c3c3c3] cursor-not-allowed'
+                    }`}
+                  >
+                    <span
+                      className="text-white font-normal text-[15px] uppercase tracking-[-0.01px]"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      PROCEED TO GATE IN
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
+
+          {}
 
           {/* ========== SUCCESS VIEW (inside overlay) ========== */}
           {currentView === 'success' && (

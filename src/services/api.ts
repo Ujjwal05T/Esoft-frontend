@@ -31,6 +31,59 @@ async function apiRequest<T>(
   }
 }
 
+// ==========================================
+// WORKSHOP REGISTRATION (New Flow)
+// ==========================================
+
+// Send OTP for phone verification
+export async function sendRegistrationOtp(phoneNumber: string) {
+  return apiRequest<{ success: boolean; message: string; expiresInSeconds: number }>(
+    '/workshop/register/send-otp',
+    {
+      method: 'POST',
+      body: JSON.stringify({ phoneNumber }),
+    }
+  );
+}
+
+// Verify OTP during registration
+export async function verifyRegistrationOtp(phoneNumber: string, otp: string) {
+  return apiRequest<{ success: boolean; message: string; token: string | null }>(
+    '/workshop/register/verify-otp',
+    {
+      method: 'POST',
+      body: JSON.stringify({ phoneNumber, otp }),
+    }
+  );
+}
+
+// Submit workshop registration
+export interface WorkshopRegistrationData {
+  ownerName: string;
+  phoneNumber: string;
+  email?: string;
+  aadhaarNumber: string;
+  workshopName: string;
+  address: string;
+  landmark?: string;
+  pinCode: string;
+  city: string;
+}
+
+export async function submitWorkshopRegistration(data: WorkshopRegistrationData) {
+  return apiRequest<{ success: boolean; message: string; workshopId: number; status: string }>(
+    '/workshop/register/submit',
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+// ==========================================
+// EXISTING WORKSHOP OWNER REGISTRATION (Legacy)
+// ==========================================
+
 // Workshop Owner Registration
 export interface RegisterOwnerData {
   ownerName: string;
@@ -333,5 +386,161 @@ export async function processStaffApproval(
       approve,
       rejectionReason,
     }),
+  });
+}
+
+// ==========================================
+// OCR SCANNING (Vehicle Plate & RC Card)
+// ==========================================
+
+export interface VehicleOcrData {
+  plateNumber: string | null;
+  ownerName: string | null;
+  vehicleBrand: string | null;
+  vehicleModel: string | null;
+  year: number | null;
+  variant: string | null;
+  chassisNumber: string | null;
+  engineNumber: string | null;
+  fuelType: string | null;
+  registrationDate: string | null;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+// Scan vehicle number plate
+export async function scanVehiclePlate(base64Image: string) {
+  return apiRequest<VehicleOcrData>('/ocr/scan-plate', {
+    method: 'POST',
+    body: JSON.stringify({ base64Image, mode: 'plate' }),
+  });
+}
+
+// Scan RC (Registration Certificate) card
+export async function scanRcCard(base64Image: string) {
+  return apiRequest<VehicleOcrData>('/ocr/scan-rc', {
+    method: 'POST',
+    body: JSON.stringify({ base64Image, mode: 'rc' }),
+  });
+}
+
+// Generic scan (pass mode as parameter)
+export async function scanVehicleImage(base64Image: string, mode: 'plate' | 'rc') {
+  return apiRequest<VehicleOcrData>('/ocr/scan', {
+    method: 'POST',
+    body: JSON.stringify({ base64Image, mode }),
+  });
+}
+
+// ==========================================
+// VEHICLE MANAGEMENT
+// ==========================================
+
+export interface CreateVehicleData {
+  plateNumber: string;
+  brand?: string;
+  model?: string;
+  year?: number;
+  variant?: string;
+  chassisNumber?: string;
+  ownerName: string;
+  contactNumber: string;
+  odometerReading?: string;
+  observations?: string;
+}
+
+export interface VehicleResponse {
+  id: number;
+  plateNumber: string;
+  brand: string | null;
+  model: string | null;
+  year: number | null;
+  variant: string | null;
+  chassisNumber: string | null;
+  ownerName: string;
+  contactNumber: string;
+  odometerReading: string | null;
+  observations: string | null;
+  observationsAudioUrl: string | null;
+  workshopOwnerId: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface VehicleListResponse {
+  vehicles: VehicleResponse[];
+  totalCount: number;
+}
+
+// Create a new vehicle
+export async function createVehicle(data: CreateVehicleData) {
+  return apiRequest<VehicleResponse>('/vehicle', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Create vehicle with audio file
+export async function createVehicleWithAudio(data: CreateVehicleData, audioBlob?: Blob) {
+  const formData = new FormData();
+  
+  // Append all vehicle data fields
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      formData.append(key, String(value));
+    }
+  });
+  
+  // Append audio file if provided
+  if (audioBlob) {
+    formData.append('audioFile', audioBlob, 'observations.webm');
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/vehicle/with-audio`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to create vehicle' };
+    }
+    
+    return { success: true, data: result as VehicleResponse };
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, error: 'Network error. Please try again.' };
+  }
+}
+
+// Get all vehicles
+export async function getVehicles() {
+  return apiRequest<VehicleListResponse>('/vehicle', {
+    method: 'GET',
+  });
+}
+
+// Get vehicle by ID
+export async function getVehicleById(id: number) {
+  return apiRequest<VehicleResponse>(`/vehicle/${id}`, {
+    method: 'GET',
+  });
+}
+
+// Update vehicle
+export async function updateVehicle(id: number, data: CreateVehicleData & { status: number }) {
+  return apiRequest<VehicleResponse>(`/vehicle/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+// Delete vehicle
+export async function deleteVehicle(id: number) {
+  return apiRequest<{ message: string }>(`/vehicle/${id}`, {
+    method: 'DELETE',
   });
 }
