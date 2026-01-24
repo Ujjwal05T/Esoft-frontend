@@ -2,14 +2,17 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import AuthInput from '@/components/auth/AuthInput';
 import AuthButton from '@/components/auth/AuthButton';
 import Image from 'next/image';
+import { login } from '@/services/api';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const router = useRouter();
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ phoneNumber?: string; password?: string; api?: string }>({});
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,12 +22,12 @@ export default function LoginPage() {
     setErrors({});
 
     // Validation
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: { phoneNumber?: string; password?: string } = {};
 
-    if (!email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
+    if (!phoneNumber) {
+      newErrors.phoneNumber = 'Phone number is required';
+    } else if (!/^[0-9]{10}$/.test(phoneNumber)) {
+      newErrors.phoneNumber = 'Enter a valid 10-digit phone number';
     }
 
     if (!password) {
@@ -38,18 +41,26 @@ export default function LoginPage() {
       return;
     }
 
-    // Simulate login
+    // Call login API
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      // Check for owner credentials
-      if (email === 'owner@etna.com' && password === 'owner123') {
-        window.location.href = '/owner/dashboard';
+    try {
+      const response = await login(phoneNumber, password);
+      
+      if (response.success && response.data?.user) {
+        // Redirect based on role
+        if (response.data.user.role === 'owner') {
+          router.push('/owner/dashboard');
+        } else {
+          router.push('/staff/dashboard');
+        }
       } else {
-        // Default to staff dashboard
-        window.location.href = '/staff/dashboard';
+        setErrors({ api: response.error || 'Login failed. Please try again.' });
       }
-    }, 1500);
+    } catch {
+      setErrors({ api: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -80,19 +91,25 @@ export default function LoginPage() {
             Sign in to access your dashboard
           </p>
 
+          {/* API Error Display */}
+          {errors.api && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-[8px]">
+              <p className="text-red-600 text-[14px]">{errors.api}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <AuthInput
-              label="Email Address"
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={setEmail}
-              error={errors.email}
+              label="Phone Number"
+              type="tel"
+              placeholder="Enter your 10-digit phone number"
+              value={phoneNumber}
+              onChange={setPhoneNumber}
+              error={errors.phoneNumber}
               required
               icon={
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
                 </svg>
               }
             />
@@ -135,7 +152,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center space-y-2">
             <p className="text-[#99a2b6] text-[14px]">
-              Don't have an account?
+              Don&apos;t have an account?
             </p>
             <div className="flex gap-3 justify-center">
               <Link
@@ -164,24 +181,24 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => {
-                setEmail('staff@etna.com');
+                setPhoneNumber('9876543210');
                 setPassword('staff123');
               }}
               className="w-full bg-white rounded-[8px] p-3 text-left hover:bg-[#e8ebf2] transition border border-[#d4d9e3]"
             >
               <p className="text-[12px] font-medium text-[#2b2b2b]"> Staff Login</p>
-              <p className="text-[11px] text-[#99a2b6]">staff@etna.com / staff123</p>
+              <p className="text-[11px] text-[#99a2b6]">9876543210 / staff123</p>
             </button>
             <button
               type="button"
               onClick={() => {
-                setEmail('owner@etna.com');
+                setPhoneNumber('9876543211');
                 setPassword('owner123');
               }}
               className="w-full bg-white rounded-[8px] p-3 text-left hover:bg-[#e8ebf2] transition border border-[#d4d9e3]"
             >
               <p className="text-[12px] font-medium text-[#2b2b2b]"> Owner Login</p>
-              <p className="text-[11px] text-[#99a2b6]">owner@etna.com / owner123</p>
+              <p className="text-[11px] text-[#99a2b6]">9876543211 / owner123</p>
             </button>
           </div>
         </div>

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import CameraScannerOverlay from './CameraScannerOverlay';
 import VehicleCard from '@/components/dashboard/VehicleCard';
 import Image from 'next/image';
-// Backend API imports removed - using static dummy data
+import { createVehicle, gateInVehicle, type CreateVehicleData, type VehicleResponse } from '@/services/api';
+
 
 interface AddVehicleOverlayProps {
   isOpen: boolean;
@@ -260,6 +261,11 @@ export default function AddVehicleOverlay({
   const [vehicleImages, setVehicleImages] = useState<string[]>([]);
   const [hasAttemptedGateIn, setHasAttemptedGateIn] = useState(false);
 
+  // API integration state
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [createdVehicleId, setCreatedVehicleId] = useState<number | null>(null);
+
   // Get available models based on selected brand
   const availableModels = selectedBrand ? (modelOptions[selectedBrand] || []) : [];
 
@@ -432,8 +438,9 @@ export default function AddVehicleOverlay({
     }
   };
 
-  const handleSendRequest = () => {
+  const handleSendRequest = async () => {
     setHasAttemptedSubmit(true);
+    setApiError(null);
 
     // Validate required fields
     if (!registrationName.trim() || !ownerName.trim() || !contactNumber.trim()) {
@@ -444,38 +451,107 @@ export default function AddVehicleOverlay({
       return;
     }
 
-    // Call the parent callback if provided (using static/dummy approach)
-    if (onSubmitRequest) {
-      onSubmitRequest({
+    setIsLoading(true);
+
+    try {
+      // Create vehicle via API
+      const vehiclePayload: CreateVehicleData = {
         plateNumber: vehicleData.plateNumber,
-        ownerName,
-        contactNumber,
-        odometerReading: '', // Not used in new design
-        observations: '', // Not used in new design
-        brand: selectedBrand || undefined,
-        model: selectedModel || undefined,
-        year: selectedYear || undefined,
+        brand: selectedBrand || vehicleData.make || undefined,
+        model: selectedModel || vehicleData.model || undefined,
+        year: selectedYear ? parseInt(selectedYear) : vehicleData.year || undefined,
         variant: selectedVariant || undefined,
         chassisNumber: chassisNumber || undefined,
-      });
+        specs: vehicleData.specs || undefined,
+        registrationName: registrationName,
+        ownerName: ownerName,
+        contactNumber: contactNumber,
+        email: email || undefined,
+        gstNumber: gstNumber || undefined,
+        insuranceProvider: insuranceProvider || undefined,
+      };
+
+      const result = await createVehicle(vehiclePayload);
+
+      if (!result.success) {
+        setApiError(result.error || 'Failed to create vehicle');
+        setIsLoading(false);
+        return;
+      }
+
+      // Store created vehicle ID for gate in
+      setCreatedVehicleId(result.data!.id);
+
+      // Call the parent callback if provided
+      if (onSubmitRequest) {
+        onSubmitRequest({
+          plateNumber: vehicleData.plateNumber,
+          ownerName,
+          contactNumber,
+          odometerReading: '',
+          observations: '',
+          brand: selectedBrand || undefined,
+          model: selectedModel || undefined,
+          year: selectedYear || undefined,
+          variant: selectedVariant || undefined,
+          chassisNumber: chassisNumber || undefined,
+        });
+      }
+      
+      // Navigate to Gate In view (next step)
+      setCurrentView('gatein');
+      // Pre-fill driver contact with owner's contact number
+      setDriverContact(contactNumber);
+    } catch (error) {
+      console.error('Error creating vehicle:', error);
+      setApiError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Navigate to Gate In view (next step)
-    setCurrentView('gatein');
-    // Pre-fill driver contact with owner's contact number
-    setDriverContact(contactNumber);
   };
 
-  const handleGateIn = () => {
+  const handleGateIn = async () => {
     setHasAttemptedGateIn(true);
+    setApiError(null);
 
     // Validate required fields for Gate In
     if (!driverName.trim() || !driverContact.trim()) {
       return;
     }
 
-    // Show success view
-    setCurrentView('success');
+    if (!createdVehicleId) {
+      setApiError('Vehicle not created. Please go back and try again.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Call Gate In API
+      const gateInResult = await gateInVehicle({
+        vehicleId: createdVehicleId,
+        gateInDateTime: gateInDateTime || new Date().toISOString(),
+        gateInDriverName: driverName,
+        gateInDriverContact: driverContact,
+        gateInOdometerReading: odometerReading || undefined,
+        gateInFuelLevel: fuelLevel > 0 ? fuelLevel : undefined,
+        gateInProblemShared: problemShared || undefined,
+      });
+
+      if (!gateInResult.success) {
+        setApiError(gateInResult.error || 'Failed to gate in vehicle');
+        setIsLoading(false);
+        return;
+      }
+
+      // Show success view
+      setCurrentView('success');
+    } catch (error) {
+      console.error('Error during gate in:', error);
+      setApiError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Auto close after success

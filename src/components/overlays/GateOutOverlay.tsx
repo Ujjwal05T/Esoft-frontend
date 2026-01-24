@@ -2,11 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import VehicleCard from '@/components/dashboard/VehicleCard';
+import { gateOutVehicle, getActiveVehicleVisit } from '@/services/api';
 
 interface GateOutOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete?: (data: GateOutData) => void;
+  vehicleId?: number; // Vehicle ID to get active visit
+  visitId?: number; // Direct visit ID if known
   vehicleData?: {
     plateNumber: string;
     year: number;
@@ -68,6 +71,8 @@ export default function GateOutOverlay({
   isOpen,
   onClose,
   onComplete,
+  vehicleId,
+  visitId: propVisitId,
   vehicleData,
 }: GateOutOverlayProps) {
   // Form state
@@ -78,6 +83,11 @@ export default function GateOutOverlay({
   const [fuelLevel, setFuelLevel] = useState(0);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  // API state
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [activeVisitId, setActiveVisitId] = useState<number | null>(propVisitId || null);
 
   // Default vehicle data for demo
   const defaultVehicle = {
@@ -101,33 +111,85 @@ export default function GateOutOverlay({
       setFuelLevel(0);
       setHasAttemptedSubmit(false);
       setShowSuccess(false);
+      setApiError(null);
+      setActiveVisitId(propVisitId || null);
     }
-  }, [isOpen]);
+  }, [isOpen, propVisitId]);
+
+  // Fetch active visit if vehicleId provided
+  useEffect(() => {
+    if (isOpen && vehicleId && !propVisitId) {
+      const fetchActiveVisit = async () => {
+        const result = await getActiveVehicleVisit(vehicleId);
+        if (result.success && result.data) {
+          setActiveVisitId(result.data.id);
+          // Pre-fill driver info from gate in
+          if (result.data.gateInDriverName) {
+            setDriverName(result.data.gateInDriverName);
+          }
+          if (result.data.gateInDriverContact) {
+            setDriverContact(result.data.gateInDriverContact);
+          }
+        }
+      };
+      fetchActiveVisit();
+    }
+  }, [isOpen, vehicleId, propVisitId]);
 
   // Handle complete action
-  const handleComplete = () => {
+  const handleComplete = async () => {
     setHasAttemptedSubmit(true);
+    setApiError(null);
 
     if (!driverName.trim() || !driverContact.trim()) {
       return;
     }
 
-    if (onComplete) {
-      onComplete({
-        driverName,
-        driverContact,
-        gateOutDateTime: gateOutDateTime || new Date().toISOString(),
-        odometerReading,
-        fuelLevel,
-      });
+    if (!activeVisitId) {
+      setApiError('No active visit found for this vehicle.');
+      return;
     }
 
-    setShowSuccess(true);
+    setIsLoading(true);
 
-    // Auto close after success
-    setTimeout(() => {
-      onClose();
-    }, 1500);
+    try {
+      // Call Gate Out API
+      const result = await gateOutVehicle(activeVisitId, {
+        gateOutDriverName: driverName,
+        gateOutDriverContact: driverContact,
+        gateOutDateTime: gateOutDateTime || undefined,
+        gateOutOdometerReading: odometerReading || undefined,
+        gateOutFuelLevel: fuelLevel > 0 ? fuelLevel : undefined,
+      });
+
+      if (!result.success) {
+        setApiError(result.error || 'Failed to complete gate out');
+        setIsLoading(false);
+        return;
+      }
+
+      if (onComplete) {
+        onComplete({
+          driverName,
+          driverContact,
+          gateOutDateTime: gateOutDateTime || new Date().toISOString(),
+          odometerReading,
+          fuelLevel,
+        });
+      }
+
+      setShowSuccess(true);
+
+      // Auto close after success
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (error) {
+      console.error('Error during gate out:', error);
+      setApiError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isOpen) return null;

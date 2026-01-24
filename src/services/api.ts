@@ -1,23 +1,100 @@
 // API Base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5196/api';
 
-// Generic API request handler
+// ==========================================
+// TOKEN MANAGEMENT
+// ==========================================
+
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+
+// Get stored auth token
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+// Set auth token
+export function setAuthToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+// Remove auth token (logout)
+export function removeAuthToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+// Get stored user info
+export function getStoredUser(): UserInfo | null {
+  if (typeof window === 'undefined') return null;
+  const userStr = localStorage.getItem(USER_KEY);
+  if (!userStr) return null;
+  try {
+    return JSON.parse(userStr);
+  } catch {
+    return null;
+  }
+}
+
+// Set user info
+export function setStoredUser(user: UserInfo): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+// Check if user is authenticated
+export function isAuthenticated(): boolean {
+  return !!getAuthToken();
+}
+
+// User info interface
+export interface UserInfo {
+  id: number;
+  name: string;
+  email?: string;
+  phoneNumber: string;
+  role: 'owner' | 'staff';
+  workshopName?: string;
+  city?: string;
+}
+
+// ==========================================
+// GENERIC API REQUEST HANDLER
+// ==========================================
+
+// Generic API request handler with automatic auth token
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; error?: string }> {
   try {
+    const token = getAuthToken();
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    
+    // Add Authorization header if token exists
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     });
 
     const data = await response.json();
 
     if (!response.ok) {
+      // If unauthorized, clear token
+      if (response.status === 401) {
+        removeAuthToken();
+      }
       return {
         success: false,
         error: data.message || data.errors?.[0] || 'An error occurred',
@@ -29,6 +106,75 @@ async function apiRequest<T>(
     console.error('API Error:', error);
     return { success: false, error: 'Network error. Please try again.' };
   }
+}
+
+// ==========================================
+// AUTHENTICATION API
+// ==========================================
+
+// Login request interface
+export interface LoginRequest {
+  phoneNumber: string;
+  password: string;
+}
+
+// Login response interface
+export interface LoginResponse {
+  success: boolean;
+  message: string;
+  token?: string;
+  expiresAt?: string;
+  user?: UserInfo;
+}
+
+// Login (generic - auto-detect owner/staff)
+export async function login(phoneNumber: string, password: string) {
+  const response = await apiRequest<LoginResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber, password }),
+  });
+  
+  if (response.success && response.data?.token && response.data?.user) {
+    setAuthToken(response.data.token);
+    setStoredUser(response.data.user);
+  }
+  
+  return response;
+}
+
+// Login as owner
+export async function loginOwner(phoneNumber: string, password: string) {
+  const response = await apiRequest<LoginResponse>('/auth/login/owner', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber, password }),
+  });
+  
+  if (response.success && response.data?.token && response.data?.user) {
+    setAuthToken(response.data.token);
+    setStoredUser(response.data.user);
+  }
+  
+  return response;
+}
+
+// Login as staff
+export async function loginStaff(phoneNumber: string, password: string) {
+  const response = await apiRequest<LoginResponse>('/auth/login/staff', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber, password }),
+  });
+  
+  if (response.success && response.data?.token && response.data?.user) {
+    setAuthToken(response.data.token);
+    setStoredUser(response.data.user);
+  }
+  
+  return response;
+}
+
+// Logout
+export function logout(): void {
+  removeAuthToken();
 }
 
 // ==========================================
@@ -236,36 +382,8 @@ export async function completePhotoUpload(email: string) {
   });
 }
 
-// Login
-export interface LoginData {
-  email: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  success: boolean;
-  token: string;
-  expiresAt: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-    workshopName: string;
-    city: string;
-    isEmailVerified: boolean;
-    isActive: boolean;
-    registrationStatus: string;
-  };
-  message: string;
-}
-
-export async function login(data: LoginData) {
-  return apiRequest<LoginResponse>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
+// Login - DEPRECATED: Use login() from Authentication API section above
+// (LoginData, LoginResponse, and login() are now defined at the top of this file)
 
 // Get Workshop Owner by Email
 export async function getOwnerByEmail(email: string) {
@@ -443,8 +561,13 @@ export interface CreateVehicleData {
   year?: number;
   variant?: string;
   chassisNumber?: string;
+  specs?: string;
+  registrationName?: string;
   ownerName: string;
   contactNumber: string;
+  email?: string;
+  gstNumber?: string;
+  insuranceProvider?: string;
   odometerReading?: string;
   observations?: string;
 }
@@ -457,8 +580,13 @@ export interface VehicleResponse {
   year: number | null;
   variant: string | null;
   chassisNumber: string | null;
+  specs: string | null;
+  registrationName: string | null;
   ownerName: string;
   contactNumber: string;
+  email: string | null;
+  gstNumber: string | null;
+  insuranceProvider: string | null;
   odometerReading: string | null;
   observations: string | null;
   observationsAudioUrl: string | null;
@@ -541,6 +669,428 @@ export async function updateVehicle(id: number, data: CreateVehicleData & { stat
 // Delete vehicle
 export async function deleteVehicle(id: number) {
   return apiRequest<{ message: string }>(`/vehicle/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ==========================================
+// VEHICLE VISIT (GATE IN / GATE OUT)
+// ==========================================
+
+export interface VehicleBasicInfo {
+  id: number;
+  plateNumber: string;
+  brand: string | null;
+  model: string | null;
+  year: number | null;
+  variant: string | null;
+  specs: string | null;
+  ownerName: string;
+  contactNumber: string;
+}
+
+export interface VehicleVisitResponse {
+  id: number;
+  vehicleId: number;
+  workshopOwnerId: number;
+  status: 'In' | 'Out';
+  // Gate In details
+  gateInDateTime: string;
+  gateInDriverName: string;
+  gateInDriverContact: string;
+  gateInOdometerReading: string | null;
+  gateInFuelLevel: number | null;
+  gateInProblemShared: string | null;
+  gateInProblemAudioUrl: string | null;
+  gateInImages: string[] | null;
+  // Gate Out details
+  gateOutDateTime: string | null;
+  gateOutDriverName: string | null;
+  gateOutDriverContact: string | null;
+  gateOutOdometerReading: string | null;
+  gateOutFuelLevel: number | null;
+  gateOutImages: string[] | null;
+  // Vehicle info
+  vehicle: VehicleBasicInfo | null;
+  // Timestamps
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface VehicleVisitListResponse {
+  visits: VehicleVisitResponse[];
+  totalCount: number;
+}
+
+export interface WorkshopVehicleSummary {
+  totalVehiclesIn: number;
+  totalVehiclesOut: number;
+  currentVehicles: VehicleVisitResponse[];
+}
+
+export interface CreateVehicleVisitData {
+  vehicleId: number;
+  gateInDateTime: string;
+  gateInDriverName: string;
+  gateInDriverContact: string;
+  gateInOdometerReading?: string;
+  gateInFuelLevel?: number;
+  gateInProblemShared?: string;
+}
+
+export interface GateOutData {
+  gateOutDriverName: string;
+  gateOutDriverContact: string;
+  gateOutDateTime?: string;
+  gateOutOdometerReading?: string;
+  gateOutFuelLevel?: number;
+}
+
+// Gate In - Create a new vehicle visit
+export async function gateInVehicle(data: CreateVehicleVisitData) {
+  return apiRequest<VehicleVisitResponse>('/vehiclevisit/gate-in', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Gate In with audio and images
+export async function gateInVehicleWithMedia(
+  data: CreateVehicleVisitData,
+  audioBlob?: Blob,
+  images?: File[]
+) {
+  const formData = new FormData();
+  
+  // Append all visit data fields
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      formData.append(key, String(value));
+    }
+  });
+  
+  // Append audio file if provided
+  if (audioBlob) {
+    formData.append('audioFile', audioBlob, 'problem.webm');
+  }
+  
+  // Append images if provided
+  if (images && images.length > 0) {
+    images.forEach((image) => {
+      formData.append('images', image);
+    });
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/vehiclevisit/gate-in/with-media`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to gate in vehicle' };
+    }
+    
+    return { success: true, data: result as VehicleVisitResponse };
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, error: 'Network error. Please try again.' };
+  }
+}
+
+// Gate Out - Complete a vehicle visit
+export async function gateOutVehicle(visitId: number, data: GateOutData) {
+  return apiRequest<VehicleVisitResponse>(`/vehiclevisit/${visitId}/gate-out`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Get visit by ID
+export async function getVehicleVisit(id: number) {
+  return apiRequest<VehicleVisitResponse>(`/vehiclevisit/${id}`, {
+    method: 'GET',
+  });
+}
+
+// Get all visits for the workshop
+export async function getAllVehicleVisits() {
+  return apiRequest<VehicleVisitListResponse>('/vehiclevisit', {
+    method: 'GET',
+  });
+}
+
+// Get vehicles currently in workshop (active visits)
+export async function getCurrentVehicles() {
+  return apiRequest<VehicleVisitListResponse>('/vehiclevisit/current', {
+    method: 'GET',
+  });
+}
+
+// Get visit history (completed gate outs)
+export async function getVehicleVisitHistory() {
+  return apiRequest<VehicleVisitListResponse>('/vehiclevisit/history', {
+    method: 'GET',
+  });
+}
+
+// Get all visits for a specific vehicle
+export async function getVehicleVisitsForVehicle(vehicleId: number) {
+  return apiRequest<VehicleVisitListResponse>(`/vehiclevisit/vehicle/${vehicleId}`, {
+    method: 'GET',
+  });
+}
+
+// Get active visit for a specific vehicle
+export async function getActiveVehicleVisit(vehicleId: number) {
+  return apiRequest<VehicleVisitResponse>(`/vehiclevisit/vehicle/${vehicleId}/active`, {
+    method: 'GET',
+  });
+}
+
+// Get workshop summary (vehicles in/out count)
+export async function getWorkshopVehicleSummary() {
+  return apiRequest<WorkshopVehicleSummary>('/vehiclevisit/summary', {
+    method: 'GET',
+  });
+}
+
+// Delete a visit
+export async function deleteVehicleVisit(id: number) {
+  return apiRequest<{ message: string }>(`/vehiclevisit/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ==========================================
+// STAFF MANAGEMENT API
+// ==========================================
+
+// Staff Permissions interface
+export interface StaffPermissions {
+  vehicleApprovals: boolean;
+  inquiryApprovals: boolean;
+  generateEstimates: boolean;
+  createJobCard: boolean;
+  disputeApprovals: boolean;
+  quoteApprovalsPayments: boolean;
+}
+
+// Staff Response interface (for staff management by owner)
+export interface WorkshopStaffResponse {
+  id: number;
+  name: string;
+  phoneNumber: string;
+  email?: string;
+  address?: string;
+  aadhaarNumber?: string;
+  photoUrl?: string;
+  workshopId: number;
+  workshopOwnerId: number;
+  city?: string;
+  role: string;
+  jobCategories?: string[];
+  permissions: StaffPermissions;
+  isActive: boolean;
+  isPhoneVerified: boolean;
+  registrationStatus: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Staff List Response interface
+export interface StaffListResponse {
+  staff: WorkshopStaffResponse[];
+  totalCount: number;
+  activeCount: number;
+  inactiveCount: number;
+}
+
+// Create Staff Data interface
+export interface CreateStaffData {
+  name: string;
+  phoneNumber: string;
+  email?: string;
+  address?: string;
+  aadhaarNumber?: string;
+  role: string;
+  jobCategories?: string[];
+  canApproveVehicles?: boolean;
+  canApproveInquiries?: boolean;
+  canGenerateEstimates?: boolean;
+  canCreateJobCard?: boolean;
+  canApproveDisputes?: boolean;
+  canApproveQuotesPayments?: boolean;
+}
+
+// Update Staff Data interface
+export interface UpdateStaffData {
+  name?: string;
+  phoneNumber?: string;
+  email?: string;
+  address?: string;
+  aadhaarNumber?: string;
+  role?: string;
+  jobCategories?: string[];
+  canApproveVehicles?: boolean;
+  canApproveInquiries?: boolean;
+  canGenerateEstimates?: boolean;
+  canCreateJobCard?: boolean;
+  canApproveDisputes?: boolean;
+  canApproveQuotesPayments?: boolean;
+}
+
+// Update Staff Permissions Data interface
+export interface UpdateStaffPermissionsData {
+  canApproveVehicles: boolean;
+  canApproveInquiries: boolean;
+  canGenerateEstimates: boolean;
+  canCreateJobCard: boolean;
+  canApproveDisputes: boolean;
+  canApproveQuotesPayments: boolean;
+}
+
+// Get all staff members
+export async function getStaff() {
+  return apiRequest<StaffListResponse>('/staff', {
+    method: 'GET',
+  });
+}
+
+// Get active staff members only
+export async function getActiveStaff() {
+  return apiRequest<StaffListResponse>('/staff/active', {
+    method: 'GET',
+  });
+}
+
+// Get inactive staff members only
+export async function getInactiveStaff() {
+  return apiRequest<StaffListResponse>('/staff/inactive', {
+    method: 'GET',
+  });
+}
+
+// Get a specific staff member by ID
+export async function getStaffById(id: number) {
+  return apiRequest<WorkshopStaffResponse>(`/staff/${id}`, {
+    method: 'GET',
+  });
+}
+
+// Create a new staff member
+export async function createStaff(data: CreateStaffData) {
+  return apiRequest<WorkshopStaffResponse>('/staff', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Create a new staff member with photo
+export async function createStaffWithPhoto(data: CreateStaffData, photo: File) {
+  const formData = new FormData();
+  
+  // Add all data fields to form data
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      if (Array.isArray(value)) {
+        value.forEach((item, index) => {
+          formData.append(`${key}[${index}]`, item);
+        });
+      } else {
+        formData.append(key, String(value));
+      }
+    }
+  });
+  
+  // Add photo
+  formData.append('photo', photo);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/staff/with-photo`, {
+      method: 'POST',
+      body: formData,
+      // Don't set Content-Type header - browser will set it with boundary for FormData
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: responseData.message || 'An error occurred',
+      };
+    }
+
+    return { success: true, data: responseData as WorkshopStaffResponse };
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, error: 'Network error. Please try again.' };
+  }
+}
+
+// Update a staff member
+export async function updateStaff(id: number, data: UpdateStaffData) {
+  return apiRequest<WorkshopStaffResponse>(`/staff/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+// Update staff permissions only
+export async function updateStaffPermissions(id: number, data: UpdateStaffPermissionsData) {
+  return apiRequest<{ message: string }>(`/staff/${id}/permissions`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+// Upload/update staff photo
+export async function uploadStaffPhoto(id: number, photo: File) {
+  const formData = new FormData();
+  formData.append('photo', photo);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/staff/${id}/photo`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: responseData.message || 'An error occurred',
+      };
+    }
+
+    return { success: true, data: responseData as { photoUrl: string } };
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, error: 'Network error. Please try again.' };
+  }
+}
+
+// Activate a staff member
+export async function activateStaff(id: number) {
+  return apiRequest<{ message: string }>(`/staff/${id}/activate`, {
+    method: 'PATCH',
+  });
+}
+
+// Deactivate a staff member
+export async function deactivateStaff(id: number) {
+  return apiRequest<{ message: string }>(`/staff/${id}/deactivate`, {
+    method: 'PATCH',
+  });
+}
+
+// Delete a staff member
+export async function deleteStaff(id: number) {
+  return apiRequest<{ message: string }>(`/staff/${id}`, {
     method: 'DELETE',
   });
 }

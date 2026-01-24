@@ -16,6 +16,7 @@ export interface StaffFormData {
   contactNumber: string;
   address: string;
   photo: string | null;
+  photoFile: File | null; // Added for API upload
   permissions: StaffPermissions;
 }
 
@@ -149,6 +150,7 @@ export default function AddStaffOverlay({
   const [contactNumber, setContactNumber] = useState('');
   const [address, setAddress] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   
   // UI state
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -172,6 +174,9 @@ export default function AddStaffOverlay({
         alert('Image size should be less than 5MB');
         return;
       }
+      
+      // Store the file reference for API upload
+      setPhotoFile(file);
       
       // Convert to base64 for preview
       const reader = new FileReader();
@@ -209,6 +214,7 @@ export default function AddStaffOverlay({
       setContactNumber('');
       setAddress('');
       setPhoto(null);
+      setPhotoFile(null);
       setShowCategoryDropdown(false);
       setShowPermissions(false);
       setPermissions({
@@ -258,6 +264,7 @@ export default function AddStaffOverlay({
       contactNumber,
       address,
       photo,
+      photoFile,
       permissions,
     };
 

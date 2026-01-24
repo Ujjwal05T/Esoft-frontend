@@ -17,7 +17,6 @@ export interface EditStaffFormData {
   name: string;
   contactNumber: string;
   address: string;
-  aadhaarNumber: string;
   role: string;
   photo: string | null;
   isActive: boolean;
@@ -105,7 +104,6 @@ export default function EditStaffOverlay({
   const [name, setName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [address, setAddress] = useState('');
-  const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [role, setRole] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(true);
@@ -134,7 +132,6 @@ export default function EditStaffOverlay({
       setName(staffData.name);
       setContactNumber(staffData.contactNumber);
       setAddress(staffData.address);
-      setAadhaarNumber(staffData.aadhaarNumber);
       setRole(staffData.role);
       setPhoto(staffData.photo);
       setIsActive(staffData.isActive);
@@ -180,7 +177,6 @@ export default function EditStaffOverlay({
     name !== staffData.name ||
     contactNumber !== staffData.contactNumber ||
     address !== staffData.address ||
-    aadhaarNumber !== staffData.aadhaarNumber ||
     role !== staffData.role ||
     photo !== staffData.photo
   );
@@ -194,7 +190,6 @@ export default function EditStaffOverlay({
       name,
       contactNumber,
       address,
-      aadhaarNumber,
       role,
       photo,
       isActive,
@@ -545,23 +540,6 @@ export default function EditStaffOverlay({
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full border border-[#d3d3d3] rounded-[8px] px-[16px] py-[14px] outline-none text-[15px] text-black focus:border-[#e5383b] transition-colors"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              />
-            </div>
-
-            {/* Aadhaar Number Input */}
-            <div className="relative">
-              <label
-                className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[10px] text-[#828282] z-10"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                Aadhaar Number
-              </label>
-              <input
-                type="text"
-                value={aadhaarNumber}
-                onChange={(e) => setAadhaarNumber(e.target.value)}
                 className="w-full border border-[#d3d3d3] rounded-[8px] px-[16px] py-[14px] outline-none text-[15px] text-black focus:border-[#e5383b] transition-colors"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import NavigationBar from '@/components/dashboard/NavigationBar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -9,6 +9,19 @@ import StaffCard, { StaffMember } from '@/components/dashboard/StaffCard';
 import AddStaffOverlay, { StaffFormData } from '@/components/overlays/AddStaffOverlay';
 import EditStaffOverlay, { EditStaffFormData } from '@/components/overlays/EditStaffOverlay';
 import ViewStaffOverlay, { ViewStaffData } from '@/components/overlays/ViewStaffOverlay';
+import {
+  getStaff,
+  createStaff,
+  createStaffWithPhoto,
+  updateStaff,
+  activateStaff,
+  deactivateStaff,
+  deleteStaff,
+  updateStaffPermissions,
+  WorkshopStaffResponse,
+  CreateStaffData,
+  UpdateStaffData,
+} from '@/services/api';
 
 // Back Arrow Icon
 const BackArrowIcon = () => (
@@ -127,14 +140,55 @@ export default function MyStaffPage() {
   const [showViewStaffOverlay, setShowViewStaffOverlay] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<EditStaffFormData | null>(null);
   const [viewStaffData, setViewStaffData] = useState<ViewStaffData | null>(null);
+  
+  // API data states
+  const [staffList, setStaffList] = useState<WorkshopStaffResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch staff data from API
+  const fetchStaffData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await getStaff();
+      if (response.success && response.data) {
+        setStaffList(response.data.staff);
+      } else {
+        setError(response.error || 'Failed to fetch staff data');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchStaffData();
+  }, [fetchStaffData]);
 
   // Filter staff based on active tab and search query
-  const filteredStaff = mockStaffData.filter(staff => {
+  const filteredStaff = staffList.filter(staff => {
     const matchesTab = activeTab === 'active' ? staff.isActive : !staff.isActive;
     const matchesSearch = staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           staff.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          staff.phone.includes(searchQuery);
+                          staff.phoneNumber.includes(searchQuery);
     return matchesTab && matchesSearch;
+  });
+
+  // Convert API response to ExtendedStaffMember format for StaffCard
+  const mapToStaffMember = (staff: WorkshopStaffResponse): ExtendedStaffMember => ({
+    id: String(staff.id),
+    name: staff.name,
+    role: staff.role,
+    phone: staff.phoneNumber,
+    avatar: staff.photoUrl || '/assets/images/default-avatar.png',
+    address: staff.address || '',
+    aadhaarNumber: staff.aadhaarNumber || '',
+    isActive: staff.isActive,
   });
 
   const handleToggleExpand = (staffId: string) => {
@@ -142,24 +196,23 @@ export default function MyStaffPage() {
   };
 
   const handleEditStaff = (staffId: string) => {
-    const staff = mockStaffData.find(s => s.id === staffId);
+    const staff = staffList.find(s => String(s.id) === staffId);
     if (staff) {
       setSelectedStaff({
-        id: staff.id,
+        id: String(staff.id),
         name: staff.name,
-        contactNumber: staff.phone,
-        address: staff.address,
-        aadhaarNumber: staff.aadhaarNumber,
+        contactNumber: staff.phoneNumber,
+        address: staff.address || '',
         role: staff.role,
-        photo: staff.avatar,
+        photo: staff.photoUrl || null,
         isActive: staff.isActive,
         permissions: {
-          vehicleApprovals: false,
-          inquiryApprovals: false,
-          generateEstimates: false,
-          createJobCard: false,
-          disputeApprovals: false,
-          quoteApprovalsPayments: false,
+          vehicleApprovals: staff.permissions.vehicleApprovals,
+          inquiryApprovals: staff.permissions.inquiryApprovals,
+          generateEstimates: staff.permissions.generateEstimates,
+          createJobCard: staff.permissions.createJobCard,
+          disputeApprovals: staff.permissions.disputeApprovals,
+          quoteApprovalsPayments: staff.permissions.quoteApprovalsPayments,
         },
       });
       setShowEditStaffOverlay(true);
@@ -167,14 +220,14 @@ export default function MyStaffPage() {
   };
 
   const handleViewStaff = (staffId: string) => {
-    const staff = mockStaffData.find(s => s.id === staffId);
+    const staff = staffList.find(s => String(s.id) === staffId);
     if (staff) {
       setViewStaffData({
-        id: staff.id,
+        id: String(staff.id),
         name: staff.name,
         role: staff.role,
-        phone: staff.phone,
-        photo: staff.avatar,
+        phone: staff.phoneNumber,
+        photo: staff.photoUrl || null,
       });
       setShowViewStaffOverlay(true);
     }
@@ -184,24 +237,85 @@ export default function MyStaffPage() {
     setShowAddStaffOverlay(true);
   };
 
-  const handleStaffSubmit = (staffData: StaffFormData) => {
+  const handleStaffSubmit = async (staffData: StaffFormData) => {
     console.log('New staff data:', staffData);
-    // TODO: Add staff to the list or send to API
+    
+    const createData: CreateStaffData = {
+      name: staffData.name,
+      phoneNumber: staffData.contactNumber,
+      role: staffData.role,
+      address: staffData.address,
+      jobCategories: staffData.jobCategories,
+      canApproveVehicles: staffData.permissions.vehicleApprovals,
+      canApproveInquiries: staffData.permissions.inquiryApprovals,
+      canGenerateEstimates: staffData.permissions.generateEstimates,
+      canCreateJobCard: staffData.permissions.createJobCard,
+      canApproveDisputes: staffData.permissions.disputeApprovals,
+      canApproveQuotesPayments: staffData.permissions.quoteApprovalsPayments,
+    };
+    
+    // Use createStaffWithPhoto if there's a photo, otherwise use regular createStaff
+    const response = staffData.photoFile 
+      ? await createStaffWithPhoto(createData, staffData.photoFile)
+      : await createStaff(createData);
+      
+    if (response.success) {
+      setShowAddStaffOverlay(false);
+      fetchStaffData(); // Refresh the list
+    } else {
+      console.error('Failed to create staff:', response.error);
+    }
   };
 
-  const handleStaffUpdate = (staffData: EditStaffFormData) => {
+  const handleStaffUpdate = async (staffData: EditStaffFormData) => {
     console.log('Updated staff data:', staffData);
-    // TODO: Update staff in the list or send to API
+    
+    const updateData: UpdateStaffData = {
+      name: staffData.name,
+      phoneNumber: staffData.contactNumber,
+      address: staffData.address,
+      role: staffData.role,
+      canApproveVehicles: staffData.permissions.vehicleApprovals,
+      canApproveInquiries: staffData.permissions.inquiryApprovals,
+      canGenerateEstimates: staffData.permissions.generateEstimates,
+      canCreateJobCard: staffData.permissions.createJobCard,
+      canApproveDisputes: staffData.permissions.disputeApprovals,
+      canApproveQuotesPayments: staffData.permissions.quoteApprovalsPayments,
+    };
+    
+    const response = await updateStaff(parseInt(staffData.id), updateData);
+    if (response.success) {
+      setShowEditStaffOverlay(false);
+      fetchStaffData(); // Refresh the list
+    } else {
+      console.error('Failed to update staff:', response.error);
+    }
   };
 
-  const handleToggleStaffActive = (staffId: string, isActive: boolean) => {
+  const handleToggleStaffActive = async (staffId: string, isActive: boolean) => {
     console.log('Toggle staff active:', staffId, isActive);
-    // TODO: Update staff active status
+    
+    const id = parseInt(staffId);
+    const response = isActive 
+      ? await activateStaff(id)
+      : await deactivateStaff(id);
+      
+    if (response.success) {
+      fetchStaffData(); // Refresh the list
+    } else {
+      console.error('Failed to toggle staff status:', response.error);
+    }
   };
 
-  const handleDeleteStaff = (staffId: string) => {
+  const handleDeleteStaff = async (staffId: string) => {
     console.log('Delete staff:', staffId);
-    // TODO: Delete staff from the list or send to API
+    
+    const response = await deleteStaff(parseInt(staffId));
+    if (response.success) {
+      fetchStaffData(); // Refresh the list
+    } else {
+      console.error('Failed to delete staff:', response.error);
+    }
   };
 
   return (
@@ -290,18 +404,43 @@ export default function MyStaffPage() {
           {/* Main Content */}
           <div className="px-[16px] pb-[180px] pt-[16px]">
             {/* Staff List */}
-            {filteredStaff.length > 0 ? (
+            {isLoading ? (
+              // Loading state
+              <div className="flex flex-col items-center justify-center py-[60px]">
+                <div className="w-[40px] h-[40px] border-4 border-[#e5383b] border-t-transparent rounded-full animate-spin mb-[16px]" />
+                <p className="text-[#666] text-[14px]" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  Loading staff...
+                </p>
+              </div>
+            ) : error ? (
+              // Error state
+              <div className="flex flex-col items-center justify-center py-[60px]">
+                <p className="text-[#e5383b] text-[14px] mb-[8px]" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  {error}
+                </p>
+                <button 
+                  onClick={fetchStaffData}
+                  className="text-[#e5383b] underline text-[14px]"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  Try again
+                </button>
+              </div>
+            ) : filteredStaff.length > 0 ? (
               <div className="flex flex-col gap-[12px]">
-                {filteredStaff.map((staff) => (
-                  <StaffCard
-                    key={staff.id}
-                    staff={staff}
-                    isExpanded={expandedCardId === staff.id}
-                    onToggleExpand={() => handleToggleExpand(staff.id)}
-                    onEdit={() => handleEditStaff(staff.id)}
-                    onView={() => handleViewStaff(staff.id)}
-                  />
-                ))}
+                {filteredStaff.map((staff) => {
+                  const mappedStaff = mapToStaffMember(staff);
+                  return (
+                    <StaffCard
+                      key={mappedStaff.id}
+                      staff={mappedStaff}
+                      isExpanded={expandedCardId === mappedStaff.id}
+                      onToggleExpand={() => handleToggleExpand(mappedStaff.id)}
+                      onEdit={() => handleEditStaff(mappedStaff.id)}
+                      onView={() => handleViewStaff(mappedStaff.id)}
+                    />
+                  );
+                })}
               </div>
             ) : (
               // Empty state

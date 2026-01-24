@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Header from '@/components/dashboard/Header';
 import NavigationBar from '@/components/dashboard/NavigationBar';
@@ -9,76 +9,94 @@ import VehicleCard from '@/components/dashboard/VehicleCard';
 import FloatingActionButton from '@/components/dashboard/FloatingActionButton';
 import AddVehicleOverlay from '@/components/overlays/AddVehicleOverlay';
 import FiltersOverlay from '@/components/overlays/FiltersOverlay';
+import { getVehicles, getCurrentVehicles, type VehicleResponse, type VehicleVisitResponse } from '@/services/api';
 
-// Static dummy vehicle data
-interface DummyVehicle {
+interface DisplayVehicle {
   id: string;
   plateNumber: string;
   year?: number;
   brand?: string;
   model?: string;
   variant?: string;
+  specs?: string;
   status: 'Active' | 'InService';
 }
-
-const dummyVehicles: DummyVehicle[] = [
-  {
-    id: '1',
-    plateNumber: 'MP 09 GL 5656',
-    year: 2018,
-    brand: 'Toyota',
-    model: 'Innova Crysta',
-    variant: '2.4L ZX MT/Diesel',
-    status: 'Active',
-  },
-  {
-    id: '2',
-    plateNumber: 'MH 12 AB 1234',
-    year: 2020,
-    brand: 'Honda',
-    model: 'City',
-    variant: '1.5L V CVT/Petrol',
-    status: 'InService',
-  },
-  {
-    id: '3',
-    plateNumber: 'DL 05 XY 9999',
-    year: 2022,
-    brand: 'Hyundai',
-    model: 'Creta',
-    variant: '1.5L SX/Diesel',
-    status: 'Active',
-  },
-  {
-    id: '4',
-    plateNumber: 'KA 01 MN 4567',
-    year: 2019,
-    brand: 'Maruti Suzuki',
-    model: 'Swift',
-    variant: '1.2L ZXi/Petrol',
-    status: 'Active',
-  },
-];
 
 export default function VehiclesPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'requests'>('all');
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [vehicles] = useState<DummyVehicle[]>(dummyVehicles);
+  const [vehicles, setVehicles] = useState<DisplayVehicle[]>([]);
+  const [inServiceVehicles, setInServiceVehicles] = useState<DisplayVehicle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch vehicles from API
+  const fetchVehicles = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch all vehicles
+      const vehiclesResult = await getVehicles();
+      
+      if (vehiclesResult.success && vehiclesResult.data) {
+        const mappedVehicles: DisplayVehicle[] = vehiclesResult.data.vehicles.map((v: VehicleResponse) => ({
+          id: String(v.id),
+          plateNumber: v.plateNumber,
+          year: v.year || undefined,
+          brand: v.brand || undefined,
+          model: v.model || undefined,
+          variant: v.variant || undefined,
+          specs: v.specs || v.variant || undefined,
+          status: v.status === 'InService' ? 'InService' : 'Active',
+        }));
+        setVehicles(mappedVehicles);
+      }
+      
+      // Fetch current vehicles (in service)
+      const currentResult = await getCurrentVehicles();
+      
+      if (currentResult.success && currentResult.data) {
+        const mappedCurrentVehicles: DisplayVehicle[] = currentResult.data.visits.map((visit: VehicleVisitResponse) => ({
+          id: String(visit.vehicleId),
+          plateNumber: visit.vehicle?.plateNumber || 'Unknown',
+          year: visit.vehicle?.year || undefined,
+          brand: visit.vehicle?.brand || undefined,
+          model: visit.vehicle?.model || undefined,
+          variant: visit.vehicle?.variant || undefined,
+          specs: visit.vehicle?.specs || visit.vehicle?.variant || undefined,
+          status: 'InService' as const,
+        }));
+        setInServiceVehicles(mappedCurrentVehicles);
+      }
+    } catch (err) {
+      console.error('Error fetching vehicles:', err);
+      setError('Failed to load vehicles. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchVehicles();
+  }, [fetchVehicles]);
 
   // Filter vehicles based on active tab
-  // For now, 'requests' tab shows vehicles with 'InService' status
   const displayVehicles = activeTab === 'all' 
     ? vehicles 
-    : vehicles.filter(vehicle => vehicle.status === 'InService');
+    : inServiceVehicles;
 
   const handleSubmitRequest = () => {
-    // With static data, no need to refresh
-    console.log('Vehicle added (using static dummy data)');
+    // Refresh vehicle list after adding
+    fetchVehicles();
   };
 
   const handleCloseAddVehicle = () => {
     setShowAddVehicle(false);
+    // Refresh vehicles in case a new one was added
+    fetchVehicles();
   };
 
   return (
@@ -118,7 +136,7 @@ export default function VehiclesPage() {
                         : 'text-[#4c4c4c] hover:text-[#1a1a1a]'
                     }`}
                   >
-                    Vehicle Request
+                    In Service ({inServiceVehicles.length})
                   </button>
                 </div>
 
@@ -137,27 +155,58 @@ export default function VehiclesPage() {
                 </button>
               </div>
               
-              {/* Empty State - only shown when no vehicles in static data */}
-              {displayVehicles.length === 0 && (
+              {/* Loading State */}
+              {isLoading && (
+                <div className="flex items-center justify-center py-[40px]">
+                  <div className="flex flex-col items-center gap-[12px]">
+                    <div className="w-[40px] h-[40px] border-4 border-[#e5383b] border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[14px] text-[#666]">Loading vehicles...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Error State */}
+              {error && !isLoading && (
+                <div className="flex items-center justify-center py-[40px]">
+                  <div className="flex flex-col items-center gap-[12px]">
+                    <p className="text-[16px] text-[#e5383b] font-medium">{error}</p>
+                    <button 
+                      onClick={fetchVehicles}
+                      className="px-[20px] py-[10px] bg-[#e5383b] text-white rounded-[8px] text-[14px] font-medium"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Empty State */}
+              {!isLoading && !error && displayVehicles.length === 0 && (
                 <div className="flex items-center justify-center py-[40px]">
                   <div className="flex flex-col items-center gap-[12px]">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M19 17H22L20.595 9.81C20.5164 9.35162 20.2816 8.9373 19.9312 8.63643C19.5809 8.33557 19.1372 8.16742 18.675 8.159H5.325C4.86276 8.16742 4.41909 8.33557 4.06878 8.63643C3.71847 8.9373 3.48358 9.35162 3.405 9.81L2 17H5M19 17V17.5C19 18.163 18.7366 18.7989 18.2678 19.2678C17.7989 19.7366 17.163 20 16.5 20C15.837 20 15.2011 19.7366 14.7322 19.2678C14.2634 18.7989 14 18.163 14 17.5V17M19 17H14M5 17V17.5C5 18.163 5.26339 18.7989 5.73223 19.2678C6.20107 19.7366 6.83696 20 7.5 20C8.16304 20 8.79893 19.7366 9.26777 19.2678C9.73661 18.7989 10 18.163 10 17.5V17M5 17H10M10 17H14" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    <p className="text-[16px] text-[#666] font-medium">No vehicles found</p>
-                    <p className="text-[14px] text-[#999]">Add your first vehicle to get started</p>
-                    <button 
-                      onClick={() => setShowAddVehicle(true)}
-                      className="mt-[8px] px-[20px] py-[10px] bg-[#e5383b] text-white rounded-[8px] text-[14px] font-medium"
-                    >
-                      Add Vehicle
-                    </button>
+                    <p className="text-[16px] text-[#666] font-medium">
+                      {activeTab === 'all' ? 'No vehicles found' : 'No vehicles in service'}
+                    </p>
+                    <p className="text-[14px] text-[#999]">
+                      {activeTab === 'all' ? 'Add your first vehicle to get started' : 'Gate in a vehicle to see it here'}
+                    </p>
+                    {activeTab === 'all' && (
+                      <button 
+                        onClick={() => setShowAddVehicle(true)}
+                        className="mt-[8px] px-[20px] py-[10px] bg-[#e5383b] text-white rounded-[8px] text-[14px] font-medium"
+                      >
+                        Add Vehicle
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Vehicles Grid - 1 column on mobile, 2 on tablet, 3 on desktop */}
-              {displayVehicles.length > 0 && (
+              {!isLoading && !error && displayVehicles.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[20px] w-full">
                   {displayVehicles.map((vehicle) => (
                     <Link
@@ -170,7 +219,7 @@ export default function VehiclesPage() {
                         year={vehicle.year || undefined}
                         make={vehicle.brand || 'Unknown'}
                         model={vehicle.model || 'Unknown'}
-                        specs={vehicle.variant || ''}
+                        specs={vehicle.specs || vehicle.variant || ''}
                         services={[]}
                         additionalServices={0}
                         variant={vehicle.status === 'InService' ? 'scan' : 'default'}
@@ -216,4 +265,5 @@ export default function VehiclesPage() {
     </div>
   );
 }
+
 
