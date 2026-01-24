@@ -244,6 +244,10 @@ export default function MobileSidebar({ isOpen, onClose, user }: MobileSidebarPr
       icon: <StaffIcon />,
       label: 'My staff',
       href: '/owner/staff',
+      onClick() {
+        router.push('/owner/staff');
+        onClose();
+      },
     },
     {
       icon: <ReportIcon />,

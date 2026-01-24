@@ -46,6 +46,11 @@ export default function Sidebar() {
       href: `/${role}/inquiries`,
     },
     (role === 'owner' ? {
+      label: 'My Staff',
+      iconSrc: '/assets/icons/users.svg',
+      href: `/${role}/staff`,
+    } : undefined),
+    (role === 'owner' ? {
       label: 'My Account',
       iconSrc: '/assets/icons/user.svg',
       href: `/${role}/profile`,
