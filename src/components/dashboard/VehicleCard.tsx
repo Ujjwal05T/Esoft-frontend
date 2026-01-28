@@ -236,6 +236,7 @@ export default function VehicleCard({
 
         {/* Bottom Section: Vehicle Info and Services */}
         <div className="px-[16px] pb-[16px] pt-[8px]">
+          
           {/* Vehicle Name */}
           <h3 className="font-semibold text-[17px] text-[#e5383b] mb-[4px] leading-tight">
             {vehicleName}

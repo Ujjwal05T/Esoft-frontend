@@ -1,213 +1,277 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import AuthInput from '@/components/auth/AuthInput';
-import AuthButton from '@/components/auth/AuthButton';
-import Image from 'next/image';
-import { login } from '@/services/api';
+import FloatingInput from '@/components/ui/FloatingInput';
+import { sendOtp, verifyOtp } from '@/services/otpAuth';
+import { getStoredUser } from '@/services/api';
+
+type LoginStep = 
+  | 'enter-mobile'     // Step 1: Enter Mobile Number
+  | 'verify-otp';      // Step 2: Verify OTP
+
+// OTP Input Component
+interface OTPInputProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+}
+
+function OTPInput({ value, onChange }: OTPInputProps) {
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleChange = (index: number, digit: string) => {
+    if (!/^\d*$/.test(digit)) return; // Only allow digits
+    
+    const newValue = [...value];
+    newValue[index] = digit.slice(-1); // Only take last character
+    onChange(newValue);
+
+    // Auto-focus next input
+    if (digit && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !value[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const newValue = [...value];
+    for (let i = 0; i < pastedData.length; i++) {
+      newValue[i] = pastedData[i];
+    }
+    onChange(newValue);
+    // Focus last filled input or first empty
+    const lastFilledIndex = Math.min(pastedData.length - 1, 5);
+    inputRefs.current[lastFilledIndex]?.focus();
+  };
+
+  return (
+    <div className="flex gap-3 justify-start">
+      {[0, 1, 2, 3, 4, 5].map((index) => (
+        <input
+          key={index}
+          ref={(el) => { inputRefs.current[index] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={value[index] || ''}
+          onChange={(e) => handleChange(index, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(index, e)}
+          onPaste={handlePaste}
+          className={`w-[48px] text-black h-[48px] text-center text-[18px] font-medium border rounded-[8px]
+            outline-none transition-all duration-200
+            ${value[index] ? 'border-[#e5383b]' : 'border-[#d1d5db]'}
+            focus:border-[#e5383b]`}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ phoneNumber?: string; password?: string; api?: string }>({});
+  const [currentStep, setCurrentStep] = useState<LoginStep>('enter-mobile');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Step 1: Mobile Number
+  const [mobileNumber, setMobileNumber] = useState('');
 
-    // Reset errors
-    setErrors({});
+  // Step 2: OTP
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
 
-    // Validation
-    const newErrors: { phoneNumber?: string; password?: string } = {};
+  // Validation checks
+  const isMobileValid = mobileNumber.length >= 10;
+  const isOtpComplete = otp.every(digit => digit !== '');
 
-    if (!phoneNumber) {
-      newErrors.phoneNumber = 'Phone number is required';
-    } else if (!/^[0-9]{10}$/.test(phoneNumber)) {
-      newErrors.phoneNumber = 'Enter a valid 10-digit phone number';
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    // Call login API
+  // Handle Get OTP
+  const handleGetOTP = async () => {
+    if (!isMobileValid) return;
+    setError('');
     setLoading(true);
+
     try {
-      const response = await login(phoneNumber, password);
+      const result = await sendOtp(mobileNumber);
       
-      if (response.success && response.data?.user) {
-        // Redirect based on role
-        if (response.data.user.role === 'owner') {
-          router.push('/owner/dashboard');
-        } else {
-          router.push('/staff/dashboard');
-        }
-      } else {
-        setErrors({ api: response.error || 'Login failed. Please try again.' });
+      if (!result.success) {
+        setError(result.error || 'Failed to send OTP. Please try again.');
+        return;
       }
-    } catch {
-      setErrors({ api: 'Network error. Please try again.' });
+      
+      setCurrentStep('verify-otp');
+    } catch (err) {
+      setError('Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle Verify OTP
+  const handleVerifyOTP = async () => {
+    if (!isOtpComplete) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const otpCode = otp.join('');
+      const result = await verifyOtp(mobileNumber, otpCode);
+      
+      if (!result.success) {
+        setError(result.error || 'Invalid OTP. Please try again.');
+        return;
+      }
+      
+      // Get user info and redirect based on role
+      const user = getStoredUser();
+      if (user) {
+        if (user.role === 'owner') {
+          router.push('/owner/dashboard');
+        } else if (user.role === 'staff') {
+          router.push('/staff/dashboard');
+        }
+      }
+    } catch (err) {
+      setError('Invalid OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle back navigation
+  const handleBack = () => {
+    if (currentStep === 'verify-otp') {
+      setCurrentStep('enter-mobile');
+      setOtp(['', '', '', '', '', '']);
+    } else {
+      router.back();
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f5f3f4] to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-[440px] mx-auto">
-        {/* Logo Section */}
-        <div className="text-center mb-8">
-          <div className="inline-block">
-            <Image
-              src="/assets/logos/etna-logo.svg"
-              alt="ETNA SPARES"
-              width={132}
-              height={72}
-              className="object-contain"
-            />
-          </div>
-          <p className="text-[#99a2b6] text-[14px] mt-2">
-            Staff Management System
-          </p>
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <button onClick={handleBack} className="text-[#1a1a1a]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <h1 className="text-[20px] font-semibold text-[#e5383b]">Login</h1>
         </div>
+        <button className="text-[#1a1a1a]">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
 
-        {/* Login Card */}
-        <div className="bg-white rounded-[16px] shadow-lg p-8">
-          <h1 className="text-[28px] font-bold text-[#2b2b2b] mb-2">
-            Welcome Back
-          </h1>
-          <p className="text-[#99a2b6] text-[14px] mb-8">
-            Sign in to access your dashboard
-          </p>
+      {/* Content */}
+      <div className="flex-1 flex flex-col px-4">
+        {/* Error Message */}
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            {error}
+          </div>
+        )}
 
-          {/* API Error Display */}
-          {errors.api && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-[8px]">
-              <p className="text-red-600 text-[14px]">{errors.api}</p>
-            </div>
-          )}
+        {/* Step 1: Enter Mobile Number */}
+        {currentStep === 'enter-mobile' && (
+          <div className="flex-1 flex flex-col pt-6">
+            <h2 className="text-[22px] font-semibold text-[#e5383b] mb-6">
+              Enter Mobile Number
+            </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <AuthInput
-              label="Phone Number"
+            <FloatingInput
+              label="Enter Mobile Number"
+              value={mobileNumber}
+              onChange={setMobileNumber}
               type="tel"
-              placeholder="Enter your 10-digit phone number"
-              value={phoneNumber}
-              onChange={setPhoneNumber}
-              error={errors.phoneNumber}
               required
-              icon={
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                </svg>
-              }
             />
 
-            <AuthInput
-              label="Password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={setPassword}
-              error={errors.password}
-              required
-              icon={
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
-                </svg>
-              }
-            />
-
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-[#d4d9e3] text-[#e5383b] focus:ring-[#e5383b] focus:ring-2"
-                />
-                <span className="text-[#2b2b2b] text-[14px]">Remember me</span>
-              </label>
-              <Link
-                href="/forgot-password"
-                className="text-[#2294f2] text-[14px] hover:text-[#1c7acc] font-medium"
-              >
-                Forgot Password?
-              </Link>
-            </div>
-
-            <AuthButton type="submit" loading={loading}>
-              Sign In
-            </AuthButton>
-          </form>
-
-          <div className="mt-6 text-center space-y-2">
-            <p className="text-[#99a2b6] text-[14px]">
-              Don&apos;t have an account?
+            <p className="mt-4 text-[14px] text-[#666]">
+              We'll send you an OTP to verify your number
             </p>
-            <div className="flex gap-3 justify-center">
-              <Link
-                href="/register"
-                className="text-[#e5383b] font-semibold hover:text-[#c62f32] text-[14px]"
-              >
-                Register as Owner
-              </Link>
-              <span className="text-[#d4d9e3]">|</span>
-              <Link
-                href="/register-staff"
-                className="text-[#2294f2] font-semibold hover:text-[#1c7acc] text-[14px]"
-              >
-                Join as Staff
-              </Link>
+          </div>
+        )}
+
+        {/* Step 2: Verify OTP */}
+        {currentStep === 'verify-otp' && (
+          <div className="flex-1 flex flex-col pt-8">
+            <h2 className="text-[22px] font-semibold text-[#e5383b] mb-6">
+              Verify OTP
+            </h2>
+
+            <p className="text-[14px] text-[#666] mb-6">
+              Enter the 6-digit code sent to {mobileNumber}
+            </p>
+
+            <OTPInput value={otp} onChange={setOtp} />
+
+            <button
+              onClick={() => handleGetOTP()}
+              className="mt-4 text-[#e5383b] text-sm font-medium text-left"
+            >
+              Resend OTP
+            </button>
+
+            <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-[12px] text-blue-600">
+                💡 <strong>Demo OTP:</strong> Use <strong>111111</strong> to login
+              </p>
             </div>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Demo Credentials */}
-        <div className="mt-6 bg-[#f5f3f4] rounded-[12px] p-4">
-          <p className="text-[#2b2b2b] text-[12px] font-semibold mb-3 text-center">
-             Demo Credentials
-          </p>
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => {
-                setPhoneNumber('9876543210');
-                setPassword('staff123');
-              }}
-              className="w-full bg-white rounded-[8px] p-3 text-left hover:bg-[#e8ebf2] transition border border-[#d4d9e3]"
-            >
-              <p className="text-[12px] font-medium text-[#2b2b2b]"> Staff Login</p>
-              <p className="text-[11px] text-[#99a2b6]">9876543210 / staff123</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPhoneNumber('9876543211');
-                setPassword('owner123');
-              }}
-              className="w-full bg-white rounded-[8px] p-3 text-left hover:bg-[#e8ebf2] transition border border-[#d4d9e3]"
-            >
-              <p className="text-[12px] font-medium text-[#2b2b2b]"> Owner Login</p>
-              <p className="text-[11px] text-[#99a2b6]">9876543211 / owner123</p>
-            </button>
-          </div>
-        </div>
+      {/* Bottom Section - Fixed to bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white px-4 pb-6 pt-4">
+        {/* Action Button */}
+        {currentStep === 'enter-mobile' && (
+          <button
+            onClick={handleGetOTP}
+            disabled={!isMobileValid || loading}
+            className={`w-full h-[52px] rounded-[8px] text-[16px] font-semibold tracking-wide
+              transition-all duration-200
+              ${isMobileValid && !loading
+                ? 'bg-[#e5383b] text-white'
+                : 'bg-[#d1d5db] text-white cursor-not-allowed'}`}
+          >
+            {loading ? 'SENDING...' : 'GET OTP'}
+          </button>
+        )}
 
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-[#99a2b6] text-[12px]">
-            © 2026 ETNA Spares. All rights reserved.
-          </p>
+        {currentStep === 'verify-otp' && (
+          <button
+            onClick={handleVerifyOTP}
+            disabled={!isOtpComplete || loading}
+            className={`w-full h-[52px] rounded-[8px] text-[16px] font-semibold tracking-wide
+              transition-all duration-200
+              ${isOtpComplete && !loading
+                ? 'bg-[#e5383b] text-white'
+                : 'bg-[#d1d5db] text-white cursor-not-allowed'}`}
+          >
+            {loading ? 'VERIFYING...' : 'LOGIN'}
+          </button>
+        )}
+
+        {/* Register Link */}
+        <div className="mt-4 text-center">
+          <span className="text-[#666] text-[14px]">
+            Don't have an account ?{' '}
+          </span>
+          <Link href="/register" className="text-[#e5383b] text-[14px] font-medium">
+            Register
+          </Link>
         </div>
       </div>
     </div>

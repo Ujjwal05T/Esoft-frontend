@@ -9,7 +9,6 @@ export interface StaffMember {
   phone: string;
   avatar: string;
   address?: string;
-  aadhaarNumber?: string;
   isActive?: boolean;
 }
 
@@ -63,12 +62,16 @@ export default function StaffCard({
     >
       <div className="flex items-start gap-[16px]">
         {/* Avatar */}
+        {/* Avatar */}
         <div className="relative w-[80px] h-[80px] rounded-[8px] overflow-hidden bg-[#f5f5f5] shrink-0">
-          <Image
-            src={staff.avatar}
+          <img
+            src={
+              staff.avatar.startsWith('http') 
+                ? staff.avatar 
+                : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5196/api').replace('/api', '')}${staff.avatar}`
+            }
             alt={staff.name}
-            fill
-            className="object-cover"
+            className="w-full h-full object-cover"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';

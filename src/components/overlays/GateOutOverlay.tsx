@@ -196,7 +196,7 @@ export default function GateOutOverlay({
 
   return (
     <>
-      <div className="fixed inset-0 z-[51] flex items-end justify-center">
+      <div className="fixed inset-0 z-51 flex items-end justify-center">
         {/* Backdrop */}
         <div
           className="absolute inset-0 bg-black/50"
@@ -458,23 +458,45 @@ export default function GateOutOverlay({
                   </div>
                 </div>
 
+
+                {/* API Error Message */}
+                {apiError && (
+                  <div className="bg-red-50 border border-red-200 rounded-[8px] p-[12px]">
+                    <p className="text-[13px] text-red-600" style={{ fontFamily: "'Inter', sans-serif" }}>
+                      {apiError}
+                    </p>
+                  </div>
+                )}
+
                 {/* Complete Button */}
                 <div className="pt-[16px] shadow-[0px_0px_30px_0px_white]">
                   <button
                     onClick={handleComplete}
-                    disabled={!driverName.trim() || !driverContact.trim()}
+                    disabled={!driverName.trim() || !driverContact.trim() || isLoading}
                     className={`w-full h-[56px] rounded-[8px] flex items-center justify-center transition-colors ${
-                      driverName.trim() && driverContact.trim()
+                      driverName.trim() && driverContact.trim() && !isLoading
                         ? 'bg-[#e5383b] hover:bg-[#c82d30]'
                         : 'bg-[#c3c3c3] cursor-not-allowed'
                     }`}
                   >
-                    <span
-                      className="text-white font-normal text-[15px] uppercase tracking-[-0.01px]"
-                      style={{ fontFamily: "'Inter', sans-serif" }}
-                    >
-                      COMPLETE
-                    </span>
+                    {isLoading ? (
+                      <div className="flex items-center gap-[8px]">
+                        <div className="w-[20px] h-[20px] border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span
+                          className="text-white font-normal text-[15px] uppercase tracking-[-0.01px]"
+                          style={{ fontFamily: "'Inter', sans-serif" }}
+                        >
+                          PROCESSING...
+                        </span>
+                      </div>
+                    ) : (
+                      <span
+                        className="text-white font-normal text-[15px] uppercase tracking-[-0.01px]"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        COMPLETE
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>

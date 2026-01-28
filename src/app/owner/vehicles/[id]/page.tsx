@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import NavigationBar from '@/components/dashboard/NavigationBar';
@@ -16,6 +16,7 @@ import NewJobCardOverlay from '@/components/overlays/NewJobCardOverlay';
 import GateOutOverlay from '@/components/overlays/GateOutOverlay';
 import OrderCard, { type Order } from '@/components/dashboard/OrderCard';
 import QuoteCard, { type Quote } from '@/components/dashboard/QuoteCard';
+import { getVehicleById, type VehicleResponse } from '@/services/api';
 
 // Mock data for Raise Dispute overlay
 const orderSuggestions = [
@@ -667,6 +668,34 @@ export default function VehicleDetailPage() {
   const [showGateOutOverlay, setShowGateOutOverlay] = useState(false);
   const [expandedQuotes, setExpandedQuotes] = useState<{ [key: string]: boolean }>({});
 
+  // State for real API data
+  const [realVehicleData, setRealVehicleData] = useState<VehicleResponse | null>(null);
+  
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real vehicle data from API
+  useEffect(() => {  
+    async function fetchVehicleData() {
+      try {
+        setLoading(true);
+        const result = await getVehicleById(parseInt(vehicleId));
+        console.log(result.data);
+        
+        if (result.success && result.data) {
+          setRealVehicleData(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch vehicle data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (vehicleId) {
+      fetchVehicleData();
+    }
+  }, [vehicleId]);
+
   if (!vehicle) {
     return <div>Vehicle not found</div>;
   }
@@ -736,15 +765,15 @@ export default function VehicleDetailPage() {
           </div>
 
           {/* Main Content */}
-          <div className="pt-[0px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px] bg-[#f5f3f4]">
+        <div className="pt-[0px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px] bg-[#f5f3f4]">
         <div className="flex flex-col gap-[16px] w-full py-[16px]">
           {/* Vehicle Card */}
           <VehicleCard
-            plateNumber={vehicle.plateNumber}
-            year={vehicle.year}
-            make={vehicle.make}
-            model={vehicle.model}
-            specs={vehicle.specs}
+            plateNumber={realVehicleData?.plateNumber as string}
+            year={realVehicleData?.year as number}
+            make={realVehicleData?.brand as string}
+            model={realVehicleData?.model as string}
+            specs={realVehicleData?.specs as string}
             services={vehicle.services}
             additionalServices={vehicle.additionalServices}
           />
@@ -852,7 +881,7 @@ export default function VehicleDetailPage() {
                       <div>
                         <p className="text-[10px] text-[#99a2b6] mb-[4px]">Chassis No.</p>
                         <p className="text-[12px] text-[#2b2b2b] font-medium">
-                          {vehicle.basicInfo.chassisNo}
+                          {realVehicleData?.chassisNumber}
                         </p>
                       </div>
                       <div>
@@ -870,25 +899,25 @@ export default function VehicleDetailPage() {
                       <div>
                         <p className="text-[10px] text-[#99a2b6] mb-[4px]">Variant</p>
                         <p className="text-[12px] text-[#2b2b2b] font-medium">
-                          {vehicle.basicInfo.variant}
+                          {realVehicleData?.specs}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-[#99a2b6] mb-[4px]">Owner Name</p>
                         <p className="text-[12px] text-[#2b2b2b] font-medium">
-                          {vehicle.basicInfo.ownerName}
+                          {realVehicleData?.ownerName}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-[#99a2b6] mb-[4px]">Contact Number</p>
                         <p className="text-[12px] text-[#2b2b2b] font-medium">
-                          {vehicle.basicInfo.contactNumber}
+                          {realVehicleData?.contactNumber}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-[#99a2b6] mb-[4px]">Odometer</p>
                         <p className="text-[12px] text-[#2b2b2b] font-medium">
-                          {vehicle.basicInfo.odometerReading}
+                          {realVehicleData?.odometerReading}
                         </p>
                       </div>
                     </div>
@@ -903,7 +932,7 @@ export default function VehicleDetailPage() {
                   className="w-full px-[16px] py-[14px] flex items-center justify-between"
                 >
                   <span className="font-semibold text-[15px] text-[#2b2b2b]">
-                    Observations
+                    Problems Shared
                   </span>
                   <svg
                     width="20"
@@ -1234,13 +1263,16 @@ export default function VehicleDetailPage() {
         onComplete={(data) => {
           console.log('Gate Out completed:', data);
           setShowGateOutOverlay(false);
+          // Refresh vehicle data after gate out
+          window.location.reload();
         }}
+        vehicleId={parseInt(vehicleId)}
         vehicleData={{
-          plateNumber: vehicle.plateNumber,
-          year: vehicle.year,
-          make: vehicle.make,
-          model: vehicle.model,
-          specs: vehicle.specs,
+          plateNumber: realVehicleData?.plateNumber || vehicle.plateNumber,
+          year: realVehicleData?.year || vehicle.year,
+          make: realVehicleData?.brand || vehicle.make,
+          model: realVehicleData?.model || vehicle.model,
+          specs: realVehicleData?.specs || vehicle.specs,
           imageUrl: '/assets/images/car-suv.png',
         }}
       />

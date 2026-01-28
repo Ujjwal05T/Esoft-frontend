@@ -885,7 +885,6 @@ export interface WorkshopStaffResponse {
   phoneNumber: string;
   email?: string;
   address?: string;
-  aadhaarNumber?: string;
   photoUrl?: string;
   workshopId: number;
   workshopOwnerId: number;
@@ -1009,9 +1008,16 @@ export async function createStaffWithPhoto(data: CreateStaffData, photo: File) {
   formData.append('photo', photo);
 
   try {
+    const token = getAuthToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/staff/with-photo`, {
       method: 'POST',
       body: formData,
+      headers,
       // Don't set Content-Type header - browser will set it with boundary for FormData
     });
 
@@ -1053,9 +1059,16 @@ export async function uploadStaffPhoto(id: number, photo: File) {
   formData.append('photo', photo);
 
   try {
+    const token = getAuthToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/staff/${id}/photo`, {
       method: 'POST',
       body: formData,
+      headers,
     });
 
     const responseData = await response.json();

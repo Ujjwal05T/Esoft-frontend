@@ -21,6 +21,7 @@ import {
   WorkshopStaffResponse,
   CreateStaffData,
   UpdateStaffData,
+  uploadStaffPhoto,
 } from '@/services/api';
 
 // Back Arrow Icon
@@ -71,7 +72,6 @@ const SearchIcon = () => (
 // Extended StaffMember for page with extra fields
 interface ExtendedStaffMember extends StaffMember {
   address: string;
-  aadhaarNumber: string;
   isActive: boolean;
 }
 
@@ -84,7 +84,6 @@ const mockStaffData: ExtendedStaffMember[] = [
     phone: '9889674593',
     avatar: '/assets/images/staff-1.png',
     address: 'MJ Colony',
-    aadhaarNumber: '1234-5678-9012',
     isActive: true,
   },
   {
@@ -94,7 +93,6 @@ const mockStaffData: ExtendedStaffMember[] = [
     phone: '9889674593',
     avatar: '/assets/images/staff-2.png',
     address: '123 Main Street',
-    aadhaarNumber: '2345-6789-0123',
     isActive: true,
   },
   {
@@ -104,7 +102,6 @@ const mockStaffData: ExtendedStaffMember[] = [
     phone: '9889674593',
     avatar: '/assets/images/staff-3.png',
     address: '456 Park Avenue',
-    aadhaarNumber: '3456-7890-1234',
     isActive: true,
   },
   {
@@ -114,7 +111,6 @@ const mockStaffData: ExtendedStaffMember[] = [
     phone: '9889674593',
     avatar: '/assets/images/staff-4.png',
     address: '789 Tech Road',
-    aadhaarNumber: '4567-8901-2345',
     isActive: true,
   },
   {
@@ -124,7 +120,6 @@ const mockStaffData: ExtendedStaffMember[] = [
     phone: '9889674593',
     avatar: '/assets/images/staff-5.png',
     address: '321 Business Blvd',
-    aadhaarNumber: '5678-9012-3456',
     isActive: false,
   },
 ];
@@ -187,7 +182,6 @@ export default function MyStaffPage() {
     phone: staff.phoneNumber,
     avatar: staff.photoUrl || '/assets/images/default-avatar.png',
     address: staff.address || '',
-    aadhaarNumber: staff.aadhaarNumber || '',
     isActive: staff.isActive,
   });
 
@@ -284,7 +278,13 @@ export default function MyStaffPage() {
     };
     
     const response = await updateStaff(parseInt(staffData.id), updateData);
+    
     if (response.success) {
+      // If there's a photo to upload, do it after successful update
+      if (staffData.photoFile) {
+        await uploadStaffPhoto(parseInt(staffData.id), staffData.photoFile);
+      }
+      
       setShowEditStaffOverlay(false);
       fetchStaffData(); // Refresh the list
     } else {

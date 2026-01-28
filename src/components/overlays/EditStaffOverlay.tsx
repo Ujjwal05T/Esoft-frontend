@@ -19,6 +19,7 @@ export interface EditStaffFormData {
   address: string;
   role: string;
   photo: string | null;
+  photoFile?: File | null; // Added for API upload on update
   isActive: boolean;
   permissions: StaffPermissions;
 }
@@ -106,6 +107,7 @@ export default function EditStaffOverlay({
   const [address, setAddress] = useState('');
   const [role, setRole] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isActive, setIsActive] = useState(true);
   
   // Permissions state
@@ -134,6 +136,7 @@ export default function EditStaffOverlay({
       setAddress(staffData.address);
       setRole(staffData.role);
       setPhoto(staffData.photo);
+      setPhotoFile(null); // Reset file
       setIsActive(staffData.isActive);
       setPermissions(staffData.permissions);
     }
@@ -159,6 +162,7 @@ export default function EditStaffOverlay({
         alert('Image size should be less than 5MB');
         return;
       }
+      setPhotoFile(file); // Store file
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhoto(reader.result as string);
@@ -192,6 +196,7 @@ export default function EditStaffOverlay({
       address,
       role,
       photo,
+      photoFile,
       isActive,
       permissions,
     };
@@ -467,11 +472,14 @@ export default function EditStaffOverlay({
             />
             
             {photo ? (
-              <Image
-                src={photo}
+              <img
+                src={
+                  photo.startsWith('data:') || photo.startsWith('http')
+                    ? photo
+                    : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5196/api').replace('/api', '')}${photo}`
+                }
                 alt="Staff photo"
-                fill
-                className="object-cover"
+                className="w-full h-full object-cover"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-[#e5e5e5]">
