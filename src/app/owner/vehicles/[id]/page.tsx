@@ -701,6 +701,8 @@ export default function VehicleDetailPage() {
   const [realVehicleData, setRealVehicleData] = useState<VehicleResponse | null>(null);
   const [jobCards, setJobCards] = useState<JobCardResponse[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [inquiries, setInquiries] = useState<any[]>([]);
+  const [loadingInquiries, setLoadingInquiries] = useState(false);
   
   const [loading, setLoading] = useState(true);
 
@@ -746,6 +748,29 @@ export default function VehicleDetailPage() {
 
     if (vehicleId) {
       fetchJobCards();
+    }
+  }, [vehicleId]);
+
+  // Fetch inquiries for this vehicle
+  const fetchInquiries = async () => {
+    try {
+      setLoadingInquiries(true);
+      const { getInquiriesByVehicleId } = await import('@/services/api');
+      const result = await getInquiriesByVehicleId(parseInt(vehicleId));
+      
+      if (result.success && result.data) {
+        setInquiries(result.data.inquiries);
+      }
+    } catch (error) {
+      console.error('Failed to fetch inquiries:', error);
+    } finally {
+      setLoadingInquiries(false);
+    }
+  };
+
+  useEffect(() => {
+    if (vehicleId) {
+      fetchInquiries();
     }
   }, [vehicleId]);
 
@@ -1151,18 +1176,43 @@ export default function VehicleDetailPage() {
           {/* Inquiry Tab Content */}
           {activeTab === 'inquiry' && (
             <div className="flex flex-col gap-[12px]">
-              {vehicle.inquiries && vehicle.inquiries.length > 0 ? (
-                vehicle.inquiries.map((inquiry: Inquiry) => (
+              {loadingInquiries ? (
+                <div className="bg-white rounded-[12px] p-[16px]">
+                  <p className="text-[14px] text-[#99a2b6] text-center">
+                    Loading inquiries...
+                  </p>
+                </div>
+              ) : inquiries && inquiries.length > 0 ? (
+                inquiries.map((inquiry: any) => (
                   <InquiryCard
                     key={inquiry.id}
-                    inquiry={inquiry}
-                    isExpanded={expandedInquiries[inquiry.id] || false}
-                    onToggle={() => toggleInquiry(inquiry.id)}
+                    inquiry={{
+                      id: inquiry.inquiryNumber,
+                      vehicleName: inquiry.vehicleName || `${realVehicleData?.brand} ${realVehicleData?.model}`,
+                      numberPlate: inquiry.numberPlate || realVehicleData?.plateNumber,
+                      placedDate: new Date(inquiry.placedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase(),
+                      closedDate: inquiry.closedDate ? new Date(inquiry.closedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase() : undefined,
+                      status: inquiry.status as 'open' | 'closed' | 'approved' | 'requested' | 'declined',
+                      inquiryBy: inquiry.requestedByName || 'Owner',
+                      jobCategory: inquiry.jobCategory,
+                      items: inquiry.items.map((item: any) => ({
+                        id: item.id.toString(),
+                        itemName: item.partName,
+                        preferredBrand: item.preferredBrand,
+                        notes: item.remark,
+                        quantity: item.quantity
+                      })),
+                      media: inquiry.items.flatMap((item: any) => 
+                        [item.audioUrl, item.image1Url, item.image2Url, item.image3Url].filter(Boolean)
+                      )
+                    }}
+                    isExpanded={expandedInquiries[inquiry.inquiryNumber] || false}
+                    onToggle={() => toggleInquiry(inquiry.inquiryNumber)}
                     onEdit={(id) => console.log('Edit inquiry:', id)}
                     onView={(id) => console.log('View inquiry:', id)}
                     onReRequest={(id) => console.log('Re-request inquiry:', id)}
                     onApprove={(id) => console.log('Approve inquiry:', id)}
-                    action={inquiry.status === 'closed' ? 'none' : (inquiry.id === 'ET/SALES/24-25/01257' ? 'approve' : 'edit')}
+                    action={inquiry.status === 'closed' ? 'none' : 'edit'}
                   />
                 ))
               ) : (
@@ -1273,6 +1323,11 @@ export default function VehicleDetailPage() {
         onAddAnotherRequest={() => {
           console.log('Adding another request');
         }}
+        onInquiryCreated={() => {
+          // Refresh inquiries list after creating a new one
+          fetchInquiries();
+        }}
+        vehicleId={parseInt(vehicleId)}
       />
 
       {/* Estimation Overlay */}

@@ -1273,3 +1273,110 @@ export async function deleteJobCard(id: number) {
     method: 'DELETE',
   });
 }
+
+// ==========================================
+// INQUIRY (PART REQUESTS)
+// ==========================================
+
+export interface InquiryItemRequest {
+  partName: string;
+  preferredBrand: string;
+  quantity: number;
+  remark: string;
+  audioUrl?: string;
+  audioDuration?: number;
+  image1Url?: string;
+  image2Url?: string;
+  image3Url?: string;
+}
+
+export interface CreateInquiryRequest {
+  vehicleId: number;
+  vehicleVisitId?: number;
+  workshopOwnerId: number;
+  requestedByStaffId: number | null;
+  jobCategory: string;
+  items: InquiryItemRequest[];
+}
+
+export interface InquiryItemResponse {
+  id: number;
+  partName: string;
+  preferredBrand: string;
+  quantity: number;
+  remark: string;
+  audioUrl: string | null;
+  audioDuration: number | null;
+  image1Url: string | null;
+  image2Url: string | null;
+  image3Url: string | null;
+  createdAt: string;
+}
+
+export interface InquiryResponse {
+  id: number;
+  vehicleId: number;
+  vehicleVisitId: number | null;
+  workshopOwnerId: number;
+  requestedByStaffId: number | null;
+  inquiryNumber: string;
+  jobCategory: string;
+  status: string;
+  placedDate: string;
+  closedDate: string | null;
+  declinedDate: string | null;
+  items: InquiryItemResponse[];
+  vehicleName: string | null;
+  numberPlate: string | null;
+  requestedByName: string | null;
+}
+
+export interface InquiryListResponse {
+  inquiries: InquiryResponse[];
+  totalCount: number;
+}
+
+// Create a new inquiry
+export async function createInquiry(data: CreateInquiryRequest) {
+  return apiRequest<InquiryResponse>('/inquiry', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Get inquiry by ID
+export async function getInquiryById(id: number) {
+  return apiRequest<InquiryResponse>(`/inquiry/${id}`, {
+    method: 'GET',
+  });
+}
+
+// Get inquiries by vehicle ID
+export async function getInquiriesByVehicleId(vehicleId: number) {
+  return apiRequest<InquiryListResponse>(`/inquiry/vehicle/${vehicleId}`, {
+    method: 'GET',
+  });
+}
+
+// Get inquiries by workshop owner ID
+export async function getInquiriesByWorkshopOwnerId(workshopOwnerId: number) {
+  return apiRequest<InquiryListResponse>(`/inquiry/workshop/${workshopOwnerId}`, {
+    method: 'GET',
+  });
+}
+
+// Update inquiry status
+export async function updateInquiryStatus(id: number, status: string) {
+  return apiRequest<{ message: string; status: string }>(`/inquiry/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+// Delete inquiry
+export async function deleteInquiry(id: number) {
+  return apiRequest<{ message: string }>(`/inquiry/${id}`, {
+    method: 'DELETE',
+  });
+}
+
