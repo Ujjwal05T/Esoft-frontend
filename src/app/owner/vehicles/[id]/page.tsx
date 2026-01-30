@@ -16,7 +16,8 @@ import NewJobCardOverlay from '@/components/overlays/NewJobCardOverlay';
 import GateOutOverlay from '@/components/overlays/GateOutOverlay';
 import OrderCard, { type Order } from '@/components/dashboard/OrderCard';
 import QuoteCard, { type Quote } from '@/components/dashboard/QuoteCard';
-import { getVehicleById, type VehicleResponse } from '@/services/api';
+import JobCard from '@/components/dashboard/JobCard';
+import { getVehicleById, getJobCardsByVehicle, type VehicleResponse, type JobCardResponse } from '@/services/api';
 
 // Mock data for Raise Dispute overlay
 const orderSuggestions = [
@@ -646,7 +647,35 @@ export default function VehicleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const vehicleId = params.id as string;
-  const vehicle = vehicleData[vehicleId];
+  
+  // Use mock data if available, otherwise use a default structure
+  // This allows the page to work with both mock IDs (1,2,3,4) and real database IDs
+  const vehicle = vehicleData[vehicleId] || {
+    id: vehicleId,
+    plateNumber: '',
+    year: 2020,
+    make: '',
+    model: '',
+    specs: '',
+    services: [],
+    additionalServices: 0,
+    status: 'Active',
+    basicInfo: {
+      makeYear: '',
+      regYear: '',
+      chassisNo: '',
+      fuel: '',
+      transmission: '',
+      variant: '',
+      ownerName: '',
+      contactNumber: '',
+      odometerReading: '',
+    },
+    observations: '',
+    jobs: [],
+    inquiries: [],
+    disputes: [],
+  };
 
   const [activeTab, setActiveTab] = useState<'jobcard' | 'inquiry' | 'disputes' | 'quotes' | 'orders'>('jobcard');
   const [expandedSections, setExpandedSections] = useState<{
@@ -670,6 +699,8 @@ export default function VehicleDetailPage() {
 
   // State for real API data
   const [realVehicleData, setRealVehicleData] = useState<VehicleResponse | null>(null);
+  const [jobCards, setJobCards] = useState<JobCardResponse[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
   
   const [loading, setLoading] = useState(true);
 
@@ -696,8 +727,56 @@ export default function VehicleDetailPage() {
     }
   }, [vehicleId]);
 
-  if (!vehicle) {
-    return <div>Vehicle not found</div>;
+  // Fetch job cards for this vehicle
+  useEffect(() => {
+    async function fetchJobCards() {
+      try {
+        setLoadingJobs(true);
+        const result = await getJobCardsByVehicle(parseInt(vehicleId));
+        
+        if (result.success && result.data) {
+          setJobCards(result.data.jobCards);
+        }
+      } catch (error) {
+        console.error('Failed to fetch job cards:', error);
+      } finally {
+        setLoadingJobs(false);
+      }
+    }
+
+    if (vehicleId) {
+      fetchJobCards();
+    }
+  }, [vehicleId]);
+
+  // Show loading or error state
+  if (loading) {
+    return (
+      <div className="bg-[#f5f3f4] relative min-h-screen w-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e5383b] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading vehicle details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!realVehicleData) {
+    return (
+      <div className="bg-[#f5f3f4] relative min-h-screen w-full flex items-center justify-center">
+        <div className="text-center px-4">
+          <div className="text-6xl mb-4">🚗</div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Vehicle Not Found</h2>
+          <p className="text-gray-600 mb-6">The vehicle you're looking for doesn't exist.</p>
+          <button
+            onClick={() => router.back()}
+            className="bg-[#e5383b] text-white px-6 py-2 rounded-lg hover:bg-[#d32f2f] transition"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const toggleSection = (section: 'basicInfo' | 'observations' | 'jobs') => {
@@ -992,64 +1071,35 @@ export default function VehicleDetailPage() {
                 </button>
                 {expandedSections.jobs && (
                   <div className="px-[16px] pb-[16px] border-t border-[#e5e5e5] pt-[16px]">
-                    {vehicle.jobs.map((job: any) => (
-                      <div key={job.id} className="bg-[#f5f3f4] rounded-[12px] p-[14px]">
-                        <h4 className="font-semibold text-[14px] text-[#2b2b2b] mb-[8px]">
-                          {job.title}
-                        </h4>
-                        <div className="flex items-center gap-[8px] mb-[8px]">
-                          <p className="text-[11px] text-[#99a2b6]">
-                            Assigned To: <span className="text-[#2b2b2b]">{job.assignedTo}</span>
-                          </p>
-                          <span className="text-[#99a2b6]">•</span>
-                          <p className="text-[11px] text-[#99a2b6]">{job.date}</p>
-                        </div>
-                        <p className="text-[12px] text-[#525252] mb-[12px]">{job.issue}</p>
-
-                        {/* Media */}
-                        <div className="flex gap-[8px] items-center">
-                          {Array.from({ length: job.images }).map((_, idx) => (
-                            <div
-                              key={`img-${idx}`}
-                              className="w-[58px] h-[58px] bg-[#d4d9e3] rounded-[8px] flex items-center justify-center"
-                            >
-                              <svg
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path
-                                  d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"
-                                  fill="#99a2b6"
-                                />
-                              </svg>
-                            </div>
-                          ))}
-                          {job.additionalMedia > 0 && (
-                            <div className="w-[58px] h-[58px] bg-[#d4d9e3] rounded-[8px] flex items-center justify-center">
-                              <p className="text-[12px] font-medium text-[#525252]">
-                                +{job.additionalMedia}
-                              </p>
-                            </div>
-                          )}
-                          {job.videos > 0 && (
-                            <div className="w-[58px] h-[58px] bg-[#d4d9e3] rounded-[8px] flex items-center justify-center">
-                              <svg
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path d="M8 5v14l11-7z" fill="#99a2b6" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
+                    {loadingJobs ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#e5383b] mx-auto"></div>
+                        <p className="text-[12px] text-[#99a2b6] mt-2">Loading jobs...</p>
                       </div>
-                    ))}
+                    ) : jobCards.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-[14px] text-[#99a2b6]">No jobs found</p>
+                        <p className="text-[12px] text-[#99a2b6] mt-1">Create a new job card to get started</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-[12px]">
+                        {jobCards.map((job) => (
+                          <JobCard
+                            key={job.id}
+                            id={job.id}
+                            jobCategory={job.jobCategory}
+                            assignedStaffName={job.assignedStaffName}
+                            remark={job.remark}
+                            audioUrl={job.audioUrl}
+                            images={job.images}
+                            videos={job.videos}
+                            createdAt={job.createdAt}
+                            status={job.status}
+                            onClick={() => console.log('Job card clicked:', job.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1250,9 +1300,11 @@ export default function VehicleDetailPage() {
       <NewJobCardOverlay
         isOpen={showNewJobCardOverlay}
         onClose={() => setShowNewJobCardOverlay(false)}
+        vehicleId={parseInt(vehicleId)}
         onAddJob={(data) => {
           console.log('New job created:', data);
           setShowNewJobCardOverlay(false);
+          // Optionally refresh job cards list here
         }}
       />
 
@@ -1263,8 +1315,8 @@ export default function VehicleDetailPage() {
         onComplete={(data) => {
           console.log('Gate Out completed:', data);
           setShowGateOutOverlay(false);
-          // Refresh vehicle data after gate out
-          window.location.reload();
+          // Redirect to vehicles page after gate out
+          router.push('/owner/vehicles');
         }}
         vehicleId={parseInt(vehicleId)}
         vehicleData={{

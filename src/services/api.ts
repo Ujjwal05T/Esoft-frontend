@@ -1107,3 +1107,169 @@ export async function deleteStaff(id: number) {
     method: 'DELETE',
   });
 }
+
+// ==========================================
+// JOB CARD API
+// ==========================================
+
+// JobCard interfaces
+export interface JobCardResponse {
+  id: number;
+  vehicleId: number;
+  vehicleVisitId?: number;
+  workshopOwnerId: number;
+  jobCategory: string;
+  assignedStaffId?: number;
+  assignedStaffName?: string;
+  remark?: string;
+  audioUrl?: string;
+  images?: string[];
+  videos?: string[];
+  status: string; // Pending, InProgress, Completed, Cancelled
+  priority: string; // Low, Normal, High, Urgent
+  estimatedCost?: number;
+  actualCost?: number;
+  estimatedDuration?: number;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+  vehicle?: {
+    id: number;
+    plateNumber: string;
+    brand?: string;
+    model?: string;
+    year?: number;
+    variant?: string;
+    specs?: string;
+    ownerName: string;
+    contactNumber: string;
+  };
+}
+
+export interface JobCardListResponse {
+  jobCards: JobCardResponse[];
+  totalCount: number;
+}
+
+export interface CreateJobCardData {
+  vehicleId: number;
+  vehicleVisitId?: number;
+  jobCategory: string;
+  assignedStaffId?: number;
+  remark?: string;
+  priority?: string;
+}
+
+export interface UpdateJobCardData {
+  jobCategory?: string;
+  assignedStaffId?: number;
+  remark?: string;
+  status?: string;
+  priority?: string;
+  estimatedCost?: number;
+  actualCost?: number;
+  estimatedDuration?: number;
+}
+
+// Create a new job card
+export async function createJobCard(data: CreateJobCardData) {
+  return apiRequest<JobCardResponse>('/jobcard', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Create job card with media (audio and images)
+export async function createJobCardWithMedia(
+  data: CreateJobCardData,
+  audioBlob?: Blob,
+  images?: File[],
+  videos?: File[]
+) {
+  const formData = new FormData();
+  
+  // Append data
+  formData.append('VehicleId', data.vehicleId.toString());
+  formData.append('JobCategory', data.jobCategory);
+  if (data.vehicleVisitId) formData.append('VehicleVisitId', data.vehicleVisitId.toString());
+  if (data.assignedStaffId) formData.append('AssignedStaffId', data.assignedStaffId.toString());
+  if (data.remark) formData.append('Remark', data.remark);
+  if (data.priority) formData.append('Priority', data.priority);
+
+  // Append audio
+  if (audioBlob) {
+    formData.append('audioFile', audioBlob, 'audio_recording.webm');
+  }
+
+  // Append images
+  if (images && images.length > 0) {
+    images.forEach((image) => {
+      formData.append('images', image);
+    });
+  }
+
+  // Append videos
+  if (videos && videos.length > 0) {
+    videos.forEach((video) => {
+      formData.append('videos', video);
+    });
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/jobcard/with-media`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getAuthToken()}`,
+      },
+      body: formData,
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to create job card' };
+    }
+    
+    return { success: true, data: result as JobCardResponse };
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, error: 'Network error. Please try again.' };
+  }
+}
+
+// Get job card by ID
+export async function getJobCard(id: number) {
+  return apiRequest<JobCardResponse>(`/jobcard/${id}`, {
+    method: 'GET',
+  });
+}
+
+// Get all job cards for a vehicle
+export async function getJobCardsByVehicle(vehicleId: number) {
+  return apiRequest<JobCardListResponse>(`/jobcard/vehicle/${vehicleId}`, {
+    method: 'GET',
+  });
+}
+
+// Get all job cards for the workshop
+export async function getAllJobCards() {
+  return apiRequest<JobCardListResponse>('/jobcard', {
+    method: 'GET',
+  });
+}
+
+// Update job card
+export async function updateJobCard(id: number, data: UpdateJobCardData) {
+  return apiRequest<JobCardResponse>(`/jobcard/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+// Delete job card
+export async function deleteJobCard(id: number) {
+  return apiRequest<{ message: string }>(`/jobcard/${id}`, {
+    method: 'DELETE',
+  });
+}

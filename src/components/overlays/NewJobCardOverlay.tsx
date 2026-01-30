@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createJobCardWithMedia, getStaff, type CreateJobCardData, type WorkshopStaffResponse } from '@/services/api';
 
 interface NewJobCardOverlayProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddJob?: (data: JobCardData) => void;
+  onAddJob?: (data: CreateJobCardData) => void;
+  vehicleId: number; // Required vehicle ID
 }
 
 interface JobCategory {
@@ -41,14 +43,6 @@ const jobCategories: JobCategory[] = [
   { id: '10', name: 'Suspension', icon: '🔩' },
 ];
 
-// Staff members data
-const staffMembers: StaffMember[] = [
-  { id: '1', name: 'Rizwaan' },
-  { id: '2', name: 'Amit' },
-  { id: '3', name: 'Sohan' },
-  { id: '4', name: 'Ravi' },
-  { id: '5', name: 'Mukesh' },
-];
 
 // Back Arrow Icon
 const BackArrowIcon = () => (
@@ -148,12 +142,17 @@ export default function NewJobCardOverlay({
   isOpen,
   onClose,
   onAddJob,
+  vehicleId,
 }: NewJobCardOverlayProps) {
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedStaff, setSelectedStaff] = useState<string>('');
+  const [selectedStaff, setSelectedStaff] = useState<string>(''); // Staff ID
+  const [selectedStaffName, setSelectedStaffName] = useState<string>(''); // Staff Name for display
   const [remark, setRemark] = useState<string>('');
-  const [images, setImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]); // Store actual File objects
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]); // For preview display
+  const [videoFiles, setVideoFiles] = useState<File[]>([]); // Store actual Video files
+  const [videoPreviewUrls, setVideoPreviewUrls] = useState<string[]>([]); // For video preview display
   
   // Dropdown state
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -168,6 +167,44 @@ export default function NewJobCardOverlay({
   
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  
+  // API state
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Staff members state
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+
+  // Fetch staff members on mount
+  useEffect(() => {
+    async function fetchStaff() {
+      setLoadingStaff(true);
+      try {
+        const result = await getStaff();
+        if (result.success && result.data) {
+          // Map API response to StaffMember interface
+          const mappedStaff: StaffMember[] = result.data.staff.map((s: WorkshopStaffResponse) => ({
+            id: String(s.id),
+            name: s.name,
+          }));
+          setStaffMembers(mappedStaff);
+        }
+      } catch (error) {
+        console.error('Failed to fetch staff:', error);
+      } finally {
+        setLoadingStaff(false);
+      }
+    }
+
+    if (isOpen) {
+      fetchStaff();
+    }
+  }, [isOpen]);
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -177,24 +214,49 @@ export default function NewJobCardOverlay({
   };
 
   // Handle audio recording
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setRecordingTime(0);
-    recordingTimerRef.current = setInterval(() => {
-      setRecordingTime(prev => prev + 1);
-    }, 1000);
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        setAudioDuration(recordingTime);
+        setHasRecording(true);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      setApiError('Could not access microphone. Please check permissions.');
+    }
   };
 
   const handleStopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
     setIsRecording(false);
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current);
     }
-    setAudioDuration(recordingTime);
-    setHasRecording(true);
   };
 
   const handleDeleteRecording = () => {
+    audioChunksRef.current = [];
     setHasRecording(false);
     setAudioDuration(0);
     setRecordingTime(0);
@@ -213,12 +275,16 @@ export default function NewJobCardOverlay({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // For demo, just add placeholder images
-      const newImages = [...images];
-      for (let i = 0; i < files.length && newImages.length < 3; i++) {
-        newImages.push(URL.createObjectURL(files[i]));
+      const newFiles: File[] = [];
+      const newPreviews: string[] = [];
+      
+      for (let i = 0; i < files.length && (imageFiles.length + newFiles.length) < 3; i++) {
+        newFiles.push(files[i]);
+        newPreviews.push(URL.createObjectURL(files[i]));
       }
-      setImages(newImages);
+      
+      setImageFiles([...imageFiles, ...newFiles]);
+      setImagePreviewUrls([...imagePreviewUrls, ...newPreviews]);
     }
     // Reset input
     if (fileInputRef.current) {
@@ -227,19 +293,101 @@ export default function NewJobCardOverlay({
   };
 
   const handleDeleteImage = (index: number) => {
-    setImages(images.filter((_, i) => i !== index));
+    // Revoke the preview URL to free memory
+    URL.revokeObjectURL(imagePreviewUrls[index]);
+    setImageFiles(imageFiles.filter((_, i) => i !== index));
+    setImagePreviewUrls(imagePreviewUrls.filter((_, i) => i !== index));
+  };
+
+  // Handle video upload
+  const handleVideoUpload = () => {
+    videoInputRef.current?.click();
+  };
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newFiles: File[] = [];
+      const newPreviews: string[] = [];
+      
+      for (let i = 0; i < files.length && (videoFiles.length + newFiles.length) < 1; i++) { // Limit to 1 video for now
+        newFiles.push(files[i]);
+        newPreviews.push(URL.createObjectURL(files[i]));
+      }
+      
+      setVideoFiles([...videoFiles, ...newFiles]);
+      setVideoPreviewUrls([...videoPreviewUrls, ...newPreviews]);
+    }
+    // Reset input
+    if (videoInputRef.current) {
+      videoInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteVideo = (index: number) => {
+    URL.revokeObjectURL(videoPreviewUrls[index]);
+    setVideoFiles(videoFiles.filter((_, i) => i !== index));
+    setVideoPreviewUrls(videoPreviewUrls.filter((_, i) => i !== index));
   };
 
   // Handle form submission
-  const handleAddJob = () => {
-    const data: JobCardData = {
-      jobCategory: selectedCategory,
-      assignedStaff: selectedStaff,
-      remark,
-      audioUrl: hasRecording ? 'audio-recorded' : undefined,
-      images,
-    };
-    onAddJob?.(data);
+  const handleAddJob = async () => {
+    if (!selectedCategory || !remark) {
+      setApiError('Please fill in job category and remark');
+      return;
+    }
+
+    setIsLoading(true);
+    setApiError(null);
+
+    try {
+      // Prepare job card data
+      const jobCardData: CreateJobCardData = {
+        vehicleId,
+        jobCategory: selectedCategory,
+        assignedStaffId: selectedStaff && selectedStaff.trim() !== '' ? parseInt(selectedStaff) : undefined,
+        remark,
+        priority: 'Normal',
+      };
+
+      // Prepare audio blob if recording exists
+      const audioBlob = hasRecording && audioChunksRef.current.length > 0 
+        ? new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        : undefined;
+
+      // Call API with actual files
+      const result = await createJobCardWithMedia(
+        jobCardData, 
+        audioBlob, 
+        imageFiles.length > 0 ? imageFiles : undefined,
+        videoFiles.length > 0 ? videoFiles : undefined
+      );
+
+      if (!result.success) {
+        setApiError(result.error || 'Failed to create job card');
+        setIsLoading(false);
+        return;
+      }
+
+      // Success!
+      setShowSuccess(true);
+      
+      // Call parent callback
+      if (onAddJob) {
+        onAddJob(jobCardData);
+      }
+
+      // Close after short delay
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error creating job card:', error);
+      setApiError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Reset state when overlay closes
@@ -247,8 +395,16 @@ export default function NewJobCardOverlay({
     if (!isOpen) {
       setSelectedCategory('');
       setSelectedStaff('');
+      setSelectedStaffName('');
       setRemark('');
-      setImages([]);
+      // Clean up image preview URLs
+      imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
+      setImageFiles([]);
+      setImagePreviewUrls([]);
+      // Clean up video preview URLs
+      videoPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+      setVideoFiles([]);
+      setVideoPreviewUrls([]);
       setShowCategoryPicker(false);
       setShowStaffPicker(false);
       setIsRecording(false);
@@ -274,7 +430,7 @@ export default function NewJobCardOverlay({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[51] flex items-end justify-center">
+    <div className="fixed inset-0 z-51 flex items-end justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -371,7 +527,7 @@ export default function NewJobCardOverlay({
 
             {/* Assign Staff Dropdown */}
             <div className="relative">
-              {selectedStaff && (
+              {selectedStaffName && (
                 <label
                   className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282] z-10"
                   style={{ fontFamily: "'Inter', sans-serif" }}
@@ -385,14 +541,14 @@ export default function NewJobCardOverlay({
                   setShowCategoryPicker(false);
                 }}
                 className={`w-full flex items-center justify-between px-[16px] py-[14px] border rounded-[8px] ${
-                  showStaffPicker || selectedStaff ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                  showStaffPicker || selectedStaffName ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
                 }`}
               >
                 <span
-                  className={`text-[15px] ${selectedStaff ? 'text-black' : 'text-[#828282]'}`}
+                  className={`text-[15px] ${selectedStaffName ? 'text-black' : 'text-[#828282]'}`}
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
-                  {selectedStaff || 'Assign Staff'}
+                  {selectedStaffName || 'Assign Staff'}
                 </span>
                 <ChevronDownIcon />
               </button>
@@ -404,11 +560,12 @@ export default function NewJobCardOverlay({
                     <button
                       key={staff.id}
                       onClick={() => {
-                        setSelectedStaff(staff.name);
+                        setSelectedStaff(staff.id);
+                        setSelectedStaffName(staff.name);
                         setShowStaffPicker(false);
                       }}
                       className={`w-full text-left px-[16px] py-[12px] hover:bg-[#f5f5f5] transition-colors ${
-                        selectedStaff === staff.name ? 'bg-[#fff5f5] ' : ''
+                        selectedStaff === staff.id ? 'bg-[#fff5f5] ' : ''
                       }`}
                     >
                       <span
@@ -492,13 +649,13 @@ export default function NewJobCardOverlay({
             {/* Image Upload Section */}
             <div className="grid grid-cols-3 gap-[12px]">
               {/* Uploaded Images */}
-              {images.map((image, index) => (
+              {imagePreviewUrls.map((imageUrl, index) => (
                 <div
                   key={index}
                   className="relative aspect-square rounded-[8px] overflow-hidden bg-[#f5f5f5]"
                 >
                   <img
-                    src={image}
+                    src={imageUrl}
                     alt={`Upload ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
@@ -512,7 +669,7 @@ export default function NewJobCardOverlay({
               ))}
 
               {/* Add Image Placeholders */}
-              {Array.from({ length: Math.max(0, 3 - images.length) }).map((_, index) => (
+              {Array.from({ length: Math.max(0, 3 - imagePreviewUrls.length) }).map((_, index) => (
                 <button
                   key={`placeholder-${index}`}
                   onClick={handleImageUpload}
@@ -522,15 +679,48 @@ export default function NewJobCardOverlay({
                 </button>
               ))}
 
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileChange}
-                className="hidden"
-              />
+              {/* Video Upload Section */}
+            <div className="mt-[12px] p-[12px] bg-[#f9f9f9] rounded-[8px] border border-dashed border-[#e0e0e0]">
+               <div className="flex justify-between items-center mb-[8px]">
+                 <p className="text-[12px] font-medium text-[#2b2b2b]">Add Video (Max 1)</p>
+               </div>
+               
+               {videoPreviewUrls.length > 0 ? (
+                 <div className="relative aspect-square bg-black rounded-[8px] overflow-hidden">
+                   <video src={videoPreviewUrls[0]} controls className="w-full h-full object-contain" />
+                   <button
+                     onClick={() => handleDeleteVideo(0)}
+                     className="absolute top-[8px] right-[8px] w-[28px] h-[28px] bg-[#e5383b] rounded-[4px] flex items-center justify-center z-10"
+                   >
+                     <DeleteIcon />
+                   </button>
+                 </div>
+               ) : (
+                 <button
+                   onClick={handleVideoUpload}
+                   className="w-full h-[40px] flex items-center justify-center gap-[8px]rounded-[6px] text-[13px] font-medium text-[#2b2b2b]"
+                 >
+                   <PlusIcon />
+                 </button>
+               )}
+            </div>
+
+            {/* Hidden File Inputs */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              multiple
+              className="hidden"
+            />
+            <input
+              type="file"
+              ref={videoInputRef}
+              onChange={handleVideoChange}
+              accept="video/*"
+              className="hidden"
+            />
             </div>
           </div>
 
