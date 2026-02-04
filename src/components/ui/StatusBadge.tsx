@@ -11,7 +11,8 @@ export type StatusType =
   | 'delivered'
   | 'pending_review'
   | 'accepted'
-  | 'approved';
+  | 'approved'
+  | 'expired';
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -60,6 +61,10 @@ const statusConfigs: Record<StatusType, { bgColor: string; label: string }> = {
   approved: {
     bgColor: '#289d27',
     label: 'Approved',
+  },
+  expired: {
+    bgColor: '#e5383b',
+    label: 'Expired',
   },
 };
 

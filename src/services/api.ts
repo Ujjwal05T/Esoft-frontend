@@ -1329,6 +1329,7 @@ export interface InquiryResponse {
   vehicleName: string | null;
   numberPlate: string | null;
   requestedByName: string | null;
+  workshopName: string | null;
 }
 
 export interface InquiryListResponse {
@@ -1377,6 +1378,72 @@ export async function updateInquiryStatus(id: number, status: string) {
 export async function deleteInquiry(id: number) {
   return apiRequest<{ message: string }>(`/inquiry/${id}`, {
     method: 'DELETE',
+  });
+}
+
+// ==========================================
+// QUOTES
+// ==========================================
+
+export interface QuoteItemApiResponse {
+  id: number;
+  inquiryItemId: number;
+  partName: string;
+  partNumber: string;
+  brand: string;
+  description: string;
+  quantity: number;
+  mrp: number;
+  unitPrice: number;
+  availability: string;
+  estimatedDelivery: string | null;
+  createdAt: string;
+}
+
+export interface QuoteApiResponse {
+  id: number;
+  quoteNumber: string;
+  inquiryId: number;
+  vehicleId: number;
+  workshopOwnerId: number;
+  inquiryNumber: string | null;
+  vehicleName: string | null;
+  plateNumber: string | null;
+  workshopName: string | null;
+  packingCharges: number;
+  forwardingCharges: number;
+  shippingCharges: number;
+  totalAmount: number;
+  status: string;
+  items: QuoteItemApiResponse[];
+  createdAt: string;
+  updatedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface QuoteListApiResponse {
+  quotes: QuoteApiResponse[];
+  totalCount: number;
+}
+
+// Get quotes by vehicle ID
+export async function getQuotesByVehicleId(vehicleId: number) {
+  return apiRequest<QuoteListApiResponse>(`/quote/vehicle/${vehicleId}`, {
+    method: 'GET',
+  });
+}
+
+// Get quotes by workshop owner ID
+export async function getQuotesByWorkshopOwnerId(workshopOwnerId: number) {
+  return apiRequest<QuoteListApiResponse>(`/quote/workshop/${workshopOwnerId}`, {
+    method: 'GET',
+  });
+}
+
+// Get quote by ID
+export async function getQuoteById(id: number) {
+  return apiRequest<QuoteApiResponse>(`/quote/${id}`, {
+    method: 'GET',
   });
 }
 

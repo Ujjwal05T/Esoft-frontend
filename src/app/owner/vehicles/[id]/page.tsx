@@ -17,7 +17,7 @@ import GateOutOverlay from '@/components/overlays/GateOutOverlay';
 import OrderCard, { type Order } from '@/components/dashboard/OrderCard';
 import QuoteCard, { type Quote } from '@/components/dashboard/QuoteCard';
 import JobCard from '@/components/dashboard/JobCard';
-import { getVehicleById, getJobCardsByVehicle, type VehicleResponse, type JobCardResponse } from '@/services/api';
+import { getVehicleById, getJobCardsByVehicle, getQuotesByVehicleId, type VehicleResponse, type JobCardResponse, type QuoteApiResponse } from '@/services/api';
 
 // Mock data for Raise Dispute overlay
 const orderSuggestions = [
@@ -95,103 +95,6 @@ const mockOrders: Order[] = [
       { id: '1', name: 'Brake Pad Set (Front)', brand: 'Bosch OEM', price: 500, quantity: 2 },
       { id: '2', name: 'Oil Filter (Synthetic)', brand: 'Aftra Modval', price: 1650.50, quantity: 4 },
       { id: '3', name: 'Wiper Blade - Driver Side', brand: 'Bosch OEM', price: 600, quantity: 1 },
-    ],
-  },
-];
-
-// Mock data for Quotes
-const mockVehicleQuotes: Quote[] = [
-  {
-    id: 'quote-v1',
-    vehicleName: 'Toyota Crysta',
-    plateNumber: 'MP09-GP4567',
-    quoteId: 'ET/QUOTE/24-25/01255',
-    submittedDate: '5 dec 2025',
-    status: 'pending_review',
-    estimatedTotal: 920.82,
-    items: [
-      {
-        id: 'vqi-1',
-        itemName: 'Brake Pad Set (Front)',
-        brand: 'OEM',
-        mrp: 750.50,
-        price: 500.00,
-        quantity: 2,
-        isAvailable: true,
-      },
-      {
-        id: 'vqi-2',
-        itemName: 'Wiper Blade',
-        brand: 'OEM',
-        mrp: 1200.70,
-        price: 899.00,
-        quantity: 2,
-        isAvailable: true,
-      },
-      {
-        id: 'vqi-3',
-        itemName: 'Brake Pad Set (Rear)',
-        brand: 'OEM',
-        price: 0,
-        quantity: 2,
-        isAvailable: false,
-      },
-      {
-        id: 'vqi-4',
-        itemName: 'Wiper Blade - Driver side',
-        brand: 'OEM',
-        price: 0,
-        quantity: 2,
-        isAvailable: false,
-      },
-    ],
-  },
-  {
-    id: 'quote-v2',
-    vehicleName: 'Toyota Crysta',
-    plateNumber: 'MP09-GP4567',
-    quoteId: 'ET/QUOTE/24-25/01256',
-    submittedDate: '3 dec 2025',
-    status: 'accepted',
-    estimatedTotal: 1520.50,
-    items: [
-      {
-        id: 'vqi-5',
-        itemName: 'Oil Filter (Synthetic)',
-        brand: 'Aftra Modval',
-        mrp: 1800.00,
-        price: 1520.50,
-        quantity: 4,
-        isAvailable: true,
-      },
-    ],
-  },
-  {
-    id: 'quote-v3',
-    vehicleName: 'Toyota Crysta',
-    plateNumber: 'MP09-GP4567',
-    quoteId: 'ET/QUOTE/24-25/01257',
-    submittedDate: '1 dec 2025',
-    status: 'pending_review',
-    estimatedTotal: 2350.00,
-    items: [
-      {
-        id: 'vqi-6',
-        itemName: 'AC Compressor',
-        brand: 'Denso',
-        mrp: 2800.00,
-        price: 2350.00,
-        quantity: 1,
-        isAvailable: true,
-      },
-      {
-        id: 'vqi-7',
-        itemName: 'AC Condenser',
-        brand: 'Denso',
-        price: 0,
-        quantity: 1,
-        isAvailable: false,
-      },
     ],
   },
 ];
@@ -696,6 +599,8 @@ export default function VehicleDetailPage() {
   const [showNewJobCardOverlay, setShowNewJobCardOverlay] = useState(false);
   const [showGateOutOverlay, setShowGateOutOverlay] = useState(false);
   const [expandedQuotes, setExpandedQuotes] = useState<{ [key: string]: boolean }>({});
+  const [vehicleQuotes, setVehicleQuotes] = useState<QuoteApiResponse[]>([]);
+  const [loadingQuotes, setLoadingQuotes] = useState(false);
 
   // State for real API data
   const [realVehicleData, setRealVehicleData] = useState<VehicleResponse | null>(null);
@@ -771,6 +676,26 @@ export default function VehicleDetailPage() {
   useEffect(() => {
     if (vehicleId) {
       fetchInquiries();
+    }
+  }, [vehicleId]);
+
+  // Fetch quotes for this vehicle
+  useEffect(() => {
+    async function fetchQuotes() {
+      try {
+        setLoadingQuotes(true);
+        const result = await getQuotesByVehicleId(parseInt(vehicleId));
+        if (result.success && result.data) {
+          setVehicleQuotes(result.data.quotes);
+        }
+      } catch (error) {
+        console.error('Failed to fetch quotes:', error);
+      } finally {
+        setLoadingQuotes(false);
+      }
+    }
+    if (vehicleId) {
+      fetchQuotes();
     }
   }, [vehicleId]);
 
@@ -1151,18 +1076,42 @@ export default function VehicleDetailPage() {
           {/* Quotes Tab Content */}
           {activeTab === 'quotes' && (
             <div className="flex flex-col gap-[12px]">
-              {mockVehicleQuotes.length > 0 ? (
-                mockVehicleQuotes.map((quote: Quote) => (
-                  <QuoteCard
-                    key={quote.id}
-                    quote={quote}
-                    isExpanded={expandedQuotes[quote.id] || false}
-                    onToggle={() => toggleQuote(quote.id)}
-                    showNumberPlate={false}
-                    onAccept={(id) => console.log('Accept quote:', id)}
-                    onView={(id) => console.log('View quote:', id)}
-                  />
-                ))
+              {loadingQuotes ? (
+                <div className="bg-white rounded-[12px] p-[16px]">
+                  <p className="text-[14px] text-[#99a2b6] text-center">Loading quotes...</p>
+                </div>
+              ) : vehicleQuotes.length > 0 ? (
+                vehicleQuotes.map((apiQuote) => {
+                  const quote: Quote = {
+                    id: apiQuote.id.toString(),
+                    vehicleName: apiQuote.vehicleName || '',
+                    plateNumber: realVehicleData?.plateNumber || '',
+                    quoteId: apiQuote.quoteNumber,
+                    submittedDate: new Date(apiQuote.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase(),
+                    status: (apiQuote.status === 'approved' ? 'accepted' : 'pending_review') as Quote['status'],
+                    estimatedTotal: apiQuote.totalAmount,
+                    items: apiQuote.items.map(item => ({
+                      id: item.id.toString(),
+                      itemName: item.partName,
+                      brand: item.brand || undefined,
+                      mrp: item.mrp || undefined,
+                      price: item.unitPrice,
+                      quantity: item.quantity,
+                      isAvailable: item.availability === 'in_stock',
+                    })),
+                  };
+                  return (
+                    <QuoteCard
+                      key={quote.id}
+                      quote={quote}
+                      isExpanded={expandedQuotes[quote.id] || false}
+                      onToggle={() => toggleQuote(quote.id)}
+                      showNumberPlate={false}
+                      onAccept={(id) => console.log('Accept quote:', id)}
+                      onView={(id) => router.push(`/owner/quotes/${id}`)}
+                    />
+                  );
+                })
               ) : (
                 <div className="bg-white rounded-[12px] p-[16px]">
                   <p className="text-[14px] text-[#99a2b6] text-center">
