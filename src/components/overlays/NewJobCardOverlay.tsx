@@ -8,6 +8,7 @@ interface NewJobCardOverlayProps {
   onClose: () => void;
   onAddJob?: (data: CreateJobCardData) => void;
   vehicleId: number; // Required vehicle ID
+  maxImages?: number; // Maximum number of images allowed (default: 3)
 }
 
 interface JobCategory {
@@ -143,6 +144,7 @@ export default function NewJobCardOverlay({
   onClose,
   onAddJob,
   vehicleId,
+  maxImages = 3,
 }: NewJobCardOverlayProps) {
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -164,12 +166,14 @@ export default function NewJobCardOverlay({
   const [hasRecording, setHasRecording] = useState(false);
   const [audioDuration, setAudioDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   // API state
   const [isLoading, setIsLoading] = useState(false);
@@ -229,6 +233,10 @@ export default function NewJobCardOverlay({
 
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(track => track.stop());
+        // Create audio URL for playback
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
         setAudioDuration(recordingTime);
         setHasRecording(true);
       };
@@ -256,7 +264,15 @@ export default function NewJobCardOverlay({
   };
 
   const handleDeleteRecording = () => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     audioChunksRef.current = [];
+    setAudioUrl(null);
     setHasRecording(false);
     setAudioDuration(0);
     setRecordingTime(0);
@@ -264,6 +280,18 @@ export default function NewJobCardOverlay({
   };
 
   const handlePlayPause = () => {
+    if (!audioUrl) return;
+    
+    if (!audioRef.current) {
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => setIsPlaying(false);
+    }
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
     setIsPlaying(!isPlaying);
   };
 
@@ -278,7 +306,7 @@ export default function NewJobCardOverlay({
       const newFiles: File[] = [];
       const newPreviews: string[] = [];
       
-      for (let i = 0; i < files.length && (imageFiles.length + newFiles.length) < 3; i++) {
+      for (let i = 0; i < files.length && (imageFiles.length + newFiles.length) < maxImages; i++) {
         newFiles.push(files[i]);
         newPreviews.push(URL.createObjectURL(files[i]));
       }
@@ -405,6 +433,15 @@ export default function NewJobCardOverlay({
       videoPreviewUrls.forEach(url => URL.revokeObjectURL(url));
       setVideoFiles([]);
       setVideoPreviewUrls([]);
+      // Clean up audio
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setAudioUrl(null);
       setShowCategoryPicker(false);
       setShowStaffPicker(false);
       setIsRecording(false);
@@ -580,9 +617,9 @@ export default function NewJobCardOverlay({
               )}
             </div>
 
-            {/* Remark Input */}
-            <div className={`relative `}>
-              {remark && (
+            {/* Remark Input with Mic Button */}
+            <div className={`relative`}>
+              {(remark || hasRecording) && (
                 <label
                   className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282] z-10"
                   style={{ fontFamily: "'Inter', sans-serif" }}
@@ -590,64 +627,100 @@ export default function NewJobCardOverlay({
                   Remark
                 </label>
               )}
-              <input
-                type="text"
-                value={remark}
-                onChange={(e) => setRemark(e.target.value)}
-                placeholder={remark ? '' : 'Remark'}
-                className={`w-full px-[16px] py-[14px] border ${remark ? 'border-[#e5383b]' : 'border-[#d3d3d3]'} rounded-[8px] text-[15px] text-black outline-none focus:border-[#e5383b] transition-colors placeholder:text-[#828282]`}
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              />
+              
+              {/* Show input when not recording and no recording exists */}
+              {!isRecording && !hasRecording && (
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                    placeholder={remark ? '' : 'Remark'}
+                    className={`w-full px-[16px] py-[14px] pr-[56px] border ${remark ? 'border-[#e5383b]' : 'border-[#d3d3d3]'} rounded-[8px] text-[15px] text-black outline-none focus:border-[#e5383b] transition-colors placeholder:text-[#828282]`}
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  />
+                  <button
+                    onClick={handleStartRecording}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 w-[90px] h-[50px] bg-[#e5383b] rounded-[6px] flex items-center  justify-center hover:bg-[#c82d30] transition-colors"
+                    title="Record audio"
+                  >
+                    <MicrophoneIcon /><span>Record</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Show recording indicator when recording */}
+              {isRecording && (
+                <div className="flex items-center gap-[12px] border border-[#e5383b] rounded-[8px] px-[16px] py-[10px] bg-[#fff5f5]">
+                  <div className="w-[12px] h-[12px] bg-[#e5383b] rounded-full animate-pulse" />
+                  <span
+                    className="flex-1 text-[15px] text-[#e5383b] font-medium"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    Recording... {formatTime(recordingTime)}
+                  </span>
+                  <button
+                    onClick={handleStopRecording}
+                    className="w-[40px] h-[32px] bg-[#e5383b] rounded-[6px] flex items-center justify-center hover:bg-[#c82d30] transition-colors"
+                    title="Stop recording"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="6" y="6" width="12" height="12" rx="2" fill="white"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {/* Show simple remark input when recording exists (no Record button) */}
+              {hasRecording && !isRecording && (
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                    placeholder={remark ? '' : 'Remark'}
+                    className={`w-full px-[16px] py-[14px] border ${remark ? 'border-[#e5383b]' : 'border-[#d3d3d3]'} rounded-[8px] text-[15px] text-black outline-none focus:border-[#e5383b] transition-colors placeholder:text-[#828282]`}
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Audio Recording Section */}
-            {!hasRecording ? (
-              <button
-                onClick={isRecording ? handleStopRecording : handleStartRecording}
-                className="w-full bg-[#e5383b] text-white py-[14px] rounded-[8px] flex items-center justify-center gap-[8px] hover:bg-[#c82d30] transition-colors"
-              >
-                <MicrophoneIcon />
-                <span
-                  className="text-[15px] font-medium"
-                  style={{ fontFamily: "'Inter', sans-serif" }}
-                >
-                  {isRecording ? `Recording... (${formatTime(recordingTime)})` : 'Press To record Audio'}
-                </span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-[12px] bg-[#f5f5f5] rounded-[8px] px-[12px] py-[10px]">
-                <button onClick={handlePlayPause}>
-                  <PlayIcon />
-                </button>
-                <div className="flex-1 h-[24px] flex items-center">
-                  {/* Waveform placeholder */}
-                  <div className="flex items-center gap-[2px] h-full">
-                    {Array.from({ length: 30 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="w-[2px] bg-[#d3d3d3] rounded-full"
-                        style={{ height: `${Math.random() * 100}%` }}
-                      />
-                    ))}
-                  </div>
+            {/* Media Upload Section */}
+            <div className="grid grid-cols-4 gap-[12px]">
+              {/* Audio Recording Card */}
+              {hasRecording && !isRecording && (
+                <div className="relative aspect-square rounded-[8px] overflow-hidden bg-[#fff5f5] border border-[#e5383b] flex flex-col items-center justify-center">
+                  <button 
+                    onClick={handlePlayPause}
+                    className="w-[32px] h-[32px] bg-[#e5383b] rounded-full flex items-center justify-center hover:bg-[#c82d30] transition-colors"
+                  >
+                    {isPlaying ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="6" y="5" width="4" height="14" rx="1" fill="white"/>
+                        <rect x="14" y="5" width="4" height="14" rx="1" fill="white"/>
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 5V19L19 12L8 5Z" fill="white"/>
+                      </svg>
+                    )}
+                  </button>
+                  <span className="text-[10px] text-[#e5383b] font-medium mt-[4px]">
+                    {formatTime(audioDuration)}
+                  </span>
+                  <button
+                    onClick={handleDeleteRecording}
+                    className="absolute top-[4px] right-[4px] w-[20px] h-[20px] bg-[#e5383b] rounded-[4px] flex items-center justify-center hover:bg-[#c82d30]"
+                    title="Delete recording"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M18 6L6 18M6 6L18 18" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </button>
                 </div>
-                <span
-                  className="text-[13px] text-[#757575]"
-                  style={{ fontFamily: "'Inter', sans-serif" }}
-                >
-                  {formatTime(audioDuration)}
-                </span>
-                <button
-                  onClick={handleDeleteRecording}
-                  className="w-[28px] h-[28px] bg-[#e5383b] rounded-[4px] flex items-center justify-center"
-                >
-                  <DeleteIcon />
-                </button>
-              </div>
-            )}
+              )}
 
-            {/* Image Upload Section */}
-            <div className="grid grid-cols-3 gap-[12px]">
               {/* Uploaded Images */}
               {imagePreviewUrls.map((imageUrl, index) => (
                 <div
@@ -661,51 +734,84 @@ export default function NewJobCardOverlay({
                   />
                   <button
                     onClick={() => handleDeleteImage(index)}
-                    className="absolute bottom-[8px] right-[8px] w-[28px] h-[28px] bg-[#e5383b] rounded-[4px] flex items-center justify-center"
+                    className="absolute bottom-[4px] right-[4px] w-[24px] h-[24px] bg-[#e5383b] rounded-[4px] flex items-center justify-center"
                   >
                     <DeleteIcon />
                   </button>
                 </div>
               ))}
 
-              {/* Add Image Placeholders */}
-              {Array.from({ length: Math.max(0, 3 - imagePreviewUrls.length) }).map((_, index) => (
-                <button
-                  key={`placeholder-${index}`}
-                  onClick={handleImageUpload}
-                  className="aspect-square rounded-[8px] border-2 border-dashed border-[#e0e0e0] flex items-center justify-center hover:border-[#e5383b] transition-colors bg-[#fafafa]"
+              {/* Uploaded Video */}
+              {videoPreviewUrls.map((videoUrl, index) => (
+                <div
+                  key={`video-${index}`}
+                  className="relative aspect-square rounded-[8px] overflow-hidden bg-black"
                 >
-                  <PlusIcon />
-                </button>
+                  <video src={videoUrl} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8 5V19L19 12L8 5Z" fill="white"/>
+                    </svg>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteVideo(index)}
+                    className="absolute bottom-[4px] right-[4px] w-[24px] h-[24px] bg-[#e5383b] rounded-[4px] flex items-center justify-center"
+                  >
+                    <DeleteIcon />
+                  </button>
+                </div>
               ))}
 
-              {/* Video Upload Section */}
-            <div className="mt-[12px] p-[12px] bg-[#f9f9f9] rounded-[8px] border border-dashed border-[#e0e0e0]">
-               <div className="flex justify-between items-center mb-[8px]">
-                 <p className="text-[12px] font-medium text-[#2b2b2b]">Add Video (Max 1)</p>
-               </div>
-               
-               {videoPreviewUrls.length > 0 ? (
-                 <div className="relative aspect-square bg-black rounded-[8px] overflow-hidden">
-                   <video src={videoPreviewUrls[0]} controls className="w-full h-full object-contain" />
-                   <button
-                     onClick={() => handleDeleteVideo(0)}
-                     className="absolute top-[8px] right-[8px] w-[28px] h-[28px] bg-[#e5383b] rounded-[4px] flex items-center justify-center z-10"
-                   >
-                     <DeleteIcon />
-                   </button>
-                 </div>
-               ) : (
-                 <button
-                   onClick={handleVideoUpload}
-                   className="w-full h-[40px] flex items-center justify-center gap-[8px]rounded-[6px] text-[13px] font-medium text-[#2b2b2b]"
-                 >
-                   <PlusIcon />
-                 </button>
-               )}
+              {/* Single Add Button - shows when limits not reached */}
+              {(imagePreviewUrls.length < maxImages || videoPreviewUrls.length < 1) && (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      // Create a temporary menu/picker for image or video
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = imagePreviewUrls.length < maxImages && videoPreviewUrls.length < 1 
+                        ? 'image/*,video/*' 
+                        : imagePreviewUrls.length < maxImages 
+                          ? 'image/*' 
+                          : 'video/*';
+                      input.multiple = imagePreviewUrls.length < maxImages;
+                      input.onchange = (e) => {
+                        const files = (e.target as HTMLInputElement).files;
+                        if (files && files.length > 0) {
+                          for (let i = 0; i < files.length; i++) {
+                            const file = files[i];
+                            if (file.type.startsWith('video/')) {
+                              if (videoPreviewUrls.length < 1) {
+                                setVideoFiles([file]);
+                                setVideoPreviewUrls([URL.createObjectURL(file)]);
+                              }
+                            } else if (file.type.startsWith('image/')) {
+                              if (imageFiles.length < maxImages) {
+                                setImageFiles(prev => [...prev, file].slice(0, maxImages));
+                                setImagePreviewUrls(prev => [...prev, URL.createObjectURL(file)].slice(0, maxImages));
+                              }
+                            }
+                          }
+                        }
+                      };
+                      input.click();
+                    }}
+                    className="aspect-square rounded-[8px] border-2 border-dashed border-[#e0e0e0] flex flex-col items-center justify-center hover:border-[#e5383b] transition-colors bg-[#fafafa]"
+                  >
+                    <PlusIcon />
+                    <span className="text-[10px] text-[#828282] mt-[2px]">
+                      {imagePreviewUrls.length}/{maxImages} img
+                    </span>
+                    <span className="text-[10px] text-[#828282]">
+                      {videoPreviewUrls.length}/1 vid
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Hidden File Inputs */}
+            {/* Hidden File Inputs (kept for compatibility) */}
             <input
               type="file"
               ref={fileInputRef}
@@ -721,7 +827,6 @@ export default function NewJobCardOverlay({
               accept="video/*"
               className="hidden"
             />
-            </div>
           </div>
 
           {/* Add Job Button */}

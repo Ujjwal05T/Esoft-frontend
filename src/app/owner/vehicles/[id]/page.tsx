@@ -17,7 +17,7 @@ import GateOutOverlay from '@/components/overlays/GateOutOverlay';
 import OrderCard, { type Order } from '@/components/dashboard/OrderCard';
 import QuoteCard, { type Quote } from '@/components/dashboard/QuoteCard';
 import JobCard from '@/components/dashboard/JobCard';
-import { getVehicleById, getJobCardsByVehicle, getQuotesByVehicleId, type VehicleResponse, type JobCardResponse, type QuoteApiResponse } from '@/services/api';
+import { getVehicleById, getJobCardsByVehicle, getQuotesByVehicleId, getActiveVehicleVisit, type VehicleResponse, type JobCardResponse, type QuoteApiResponse, type VehicleVisitResponse } from '@/services/api';
 
 // Mock data for Raise Dispute overlay
 const orderSuggestions = [
@@ -584,10 +584,12 @@ export default function VehicleDetailPage() {
   const [expandedSections, setExpandedSections] = useState<{
     basicInfo: boolean;
     observations: boolean;
+    previousServices: boolean;
     jobs: boolean;
   }>({
     basicInfo: false,
     observations: false,
+    previousServices: false,
     jobs: true, // Jobs expanded by default
   });
   const [expandedInquiries, setExpandedInquiries] = useState<{
@@ -608,6 +610,8 @@ export default function VehicleDetailPage() {
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [loadingInquiries, setLoadingInquiries] = useState(false);
+  const [activeVisit, setActiveVisit] = useState<VehicleVisitResponse | null>(null);
+  const [loadingVisit, setLoadingVisit] = useState(false);
   
   const [loading, setLoading] = useState(true);
 
@@ -699,6 +703,26 @@ export default function VehicleDetailPage() {
     }
   }, [vehicleId]);
 
+  // Fetch active vehicle visit for this vehicle (contains odometer reading and problems shared)
+  useEffect(() => {
+    async function fetchActiveVisit() {
+      try {
+        setLoadingVisit(true);
+        const result = await getActiveVehicleVisit(parseInt(vehicleId));
+        if (result.success && result.data) {
+          setActiveVisit(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch active visit:', error);
+      } finally {
+        setLoadingVisit(false);
+      }
+    }
+    if (vehicleId) {
+      fetchActiveVisit();
+    }
+  }, [vehicleId]);
+
   // Show loading or error state
   if (loading) {
     return (
@@ -729,7 +753,7 @@ export default function VehicleDetailPage() {
     );
   }
 
-  const toggleSection = (section: 'basicInfo' | 'observations' | 'jobs') => {
+  const toggleSection = (section: 'basicInfo' | 'observations' | 'previousServices' | 'jobs') => {
     setExpandedSections((prev) => ({
       ...prev,
       [section]: !prev[section],
@@ -946,7 +970,7 @@ export default function VehicleDetailPage() {
                       <div>
                         <p className="text-[10px] text-[#99a2b6] mb-[4px]">Odometer</p>
                         <p className="text-[12px] text-[#2b2b2b] font-medium">
-                          {realVehicleData?.odometerReading}
+                          {activeVisit?.gateInOdometerReading || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -985,8 +1009,54 @@ export default function VehicleDetailPage() {
                 {expandedSections.observations && (
                   <div className="px-[16px] pb-[16px] border-t border-[#e5e5e5]">
                     <p className="text-[13px] text-[#525252] pt-[16px]">
-                      {vehicle.observations}
+                      {activeVisit?.gateInProblemShared || 'No problems shared for this visit'}
                     </p>
+                    {activeVisit?.gateInProblemAudioUrl && (
+                      <div className="mt-3">
+                        <audio controls className="w-full">
+                          <source src={activeVisit.gateInProblemAudioUrl} type="audio/webm" />
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Previous Services Accordion */}
+              <div className="bg-white rounded-[12px] overflow-hidden">
+                <button
+                  onClick={() => toggleSection('previousServices')}
+                  className="w-full px-[16px] py-[14px] flex items-center justify-between"
+                >
+                  <span className="font-semibold text-[15px] text-[#2b2b2b]">
+                    Previous Services
+                  </span>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`transition-transform ${
+                      expandedSections.previousServices ? 'rotate-180' : ''
+                    }`}
+                  >
+                    <path
+                      d="M5 7.5l5 5 5-5"
+                      stroke="#2b2b2b"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                {expandedSections.previousServices && (
+                  <div className="px-[16px] pb-[16px] border-t border-[#e5e5e5]">
+                    <div className="text-center py-8">
+                      <p className="text-[14px] text-[#99a2b6]">No previous services found</p>
+                      <p className="text-[12px] text-[#99a2b6] mt-1">Service history will appear here</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1059,7 +1129,13 @@ export default function VehicleDetailPage() {
 
           {/* Orders Tab Content */}
           {activeTab === 'orders' && (
-            <div className="rounded-[12px] ">
+            <div className="rounded-[12px]">
+              {/* No orders found message */}
+              <div className="bg-white rounded-[12px] p-[32px] text-center">
+                <p className="text-[16px] font-medium text-[#2b2b2b] mb-[8px]">No Orders Found</p>
+                <p className="text-[14px] text-[#99a2b6]">Orders for this vehicle will appear here</p>
+              </div>
+              {/* Keeping mockOrders for future use - uncomment below when ready
               <div className='space-y-4'>
                 {mockOrders.map((order: Order) => (
                   <OrderCard key={order.id} 
@@ -1070,6 +1146,7 @@ export default function VehicleDetailPage() {
                   />
                 ))}
               </div>
+              */}
             </div>
           )}
 

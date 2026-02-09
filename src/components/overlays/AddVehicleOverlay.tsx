@@ -666,9 +666,9 @@ export default function AddVehicleOverlay({
                   onClick={handleScanNumber}
                   className="flex items-center justify-center gap-[4px] sm:gap-[6px] bg-[#e5383b] text-white px-[8px] sm:px-[12px] py-[10px] rounded-[10px] hover:bg-[#c82d30] transition-colors shrink-0"
                 >
-                  <QRScanIcon />
+                  <Image src="/assets/icons/Union.svg" alt="Scan" width={20} height={20} />
                   <span
-                    className="font-normal text-[14px] sm:text-[17px] whitespace-nowrap hidden sm:inline"
+                    className="font-normal text-[14px] sm:text-[17px] whitespace-nowrap sm:inline"
                     style={{ fontFamily: "'Inter', sans-serif" }}
                   >
                     Scan Number

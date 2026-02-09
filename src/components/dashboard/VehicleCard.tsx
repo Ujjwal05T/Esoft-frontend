@@ -228,7 +228,7 @@ export default function VehicleCard({
 
           {/* Plate Number Badge */}
           <div className="absolute right-[12px] top-[12px] bg-white h-[33px] px-[10px] rounded-[7px] flex items-center justify-center">
-            <p className="font-bold text-[12px] text-red-600 tracking-[-0.41px]">
+            <p className="font-semibold text-[13px] text-red-600 tracking-[0.5px]">
               {plateNumber}
             </p>
           </div>

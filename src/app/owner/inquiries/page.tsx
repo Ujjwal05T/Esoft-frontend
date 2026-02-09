@@ -6,8 +6,9 @@ import Sidebar from '@/components/layout/Sidebar';
 import InquiryCard, { Inquiry } from '@/components/dashboard/InquiryCard';
 import DisputeCard, { Dispute } from '@/components/dashboard/DisputeCard';
 import QuoteCard, { Quote } from '@/components/dashboard/QuoteCard';
+import FiltersOverlay from '@/components/overlays/FiltersOverlay';
 import { useRouter } from 'next/navigation';
-import { getQuotesByWorkshopOwnerId, getStoredUser, type QuoteApiResponse } from '@/services/api';
+import { getQuotesByWorkshopOwnerId, getInquiriesByWorkshopOwnerId, getStoredUser, type QuoteApiResponse, type InquiryResponse } from '@/services/api';
 
 // Mock Data for Inquiries
 const mockInquiries: Inquiry[] = [
@@ -217,6 +218,9 @@ export default function InquiriesPage() {
   const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
   const [quotes, setQuotes] = useState<QuoteApiResponse[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
+  const [inquiries, setInquiries] = useState<InquiryResponse[]>([]);
+  const [loadingInquiries, setLoadingInquiries] = useState(false);
+  const [showFiltersOverlay, setShowFiltersOverlay] = useState(false);
 
   const handleToggleInquiry = (id: string) => {
     setExpandedInquiryId(expandedInquiryId === id ? null : id);
@@ -258,6 +262,27 @@ export default function InquiriesPage() {
     console.log('Chat dispute:', id);
   };
 
+  // Fetch inquiries from API
+  useEffect(() => {
+    async function fetchInquiries() {
+      try {
+        setLoadingInquiries(true);
+        const user = getStoredUser();
+        if (!user) return;
+        const result = await getInquiriesByWorkshopOwnerId(user.id);
+        if (result.success && result.data) {
+          setInquiries(result.data.inquiries);
+        }
+      } catch (error) {
+        console.error('Failed to fetch inquiries:', error);
+      } finally {
+        setLoadingInquiries(false);
+      }
+    }
+    fetchInquiries();
+  }, []);
+
+  // Fetch quotes from API
   useEffect(() => {
     async function fetchQuotes() {
       try {
@@ -346,7 +371,10 @@ export default function InquiriesPage() {
               </div>
 
               {/* Filter Button */}
-              <button className="flex items-center gap-[6px] px-[16px] py-[8px] border border-[#e5383b] rounded-[8px] text-[#e5383b] text-[14px] font-medium hover:bg-[#fff5f5] transition-colors">
+              <button 
+                onClick={() => setShowFiltersOverlay(true)}
+                className="flex items-center gap-[6px] px-[16px] py-[8px] border border-[#e5383b] rounded-[8px] text-[#e5383b] text-[14px] font-medium hover:bg-[#fff5f5] transition-colors"
+              >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M4 11L4 5" stroke="#E5383B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M12 11L12 5" stroke="#E5383B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -361,20 +389,54 @@ export default function InquiriesPage() {
             {activeTab === 'inquiries' && (
               /* Inquiries List */
               <div className="flex flex-col gap-[16px]">
-                {mockInquiries.map((inquiry) => (
-                  <InquiryCard
-                    key={inquiry.id}
-                    inquiry={inquiry}
-                    isExpanded={expandedInquiryId === inquiry.id}
-                    onToggle={() => handleToggleInquiry(inquiry.id)}
-                    onEdit={handleEditInquiry}
-                    onView={handleViewInquiry}
-                    onApprove={handleApproveInquiry}
-                    onReRequest={handleReRequestInquiry}
-                    showNumberPlate={true}
-                    action="approve"
-                  />
-                ))}
+                {loadingInquiries ? (
+                  <div className="bg-[#f5f5f5] rounded-[12px] p-[16px]">
+                    <p className="text-[14px] text-[#99a2b6] text-center">Loading inquiries...</p>
+                  </div>
+                ) : inquiries.length > 0 ? (
+                  inquiries.map((apiInquiry) => {
+                    // Map API response to Inquiry type expected by InquiryCard
+                    const inquiry: Inquiry = {
+                      id: apiInquiry.inquiryNumber, // Use inquiryNumber as the display ID
+                      vehicleName: apiInquiry.vehicleName || '',
+                      numberPlate: apiInquiry.numberPlate || '',
+                      placedDate: new Date(apiInquiry.placedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase(),
+                      closedDate: apiInquiry.closedDate ? new Date(apiInquiry.closedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase() : undefined,
+                      declinedDate: apiInquiry.declinedDate ? new Date(apiInquiry.declinedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase() : undefined,
+                      status: apiInquiry.status.toLowerCase() as Inquiry['status'],
+                      inquiryBy: apiInquiry.requestedByName || 'Owner',
+                      jobCategory: apiInquiry.jobCategory,
+                      items: apiInquiry.items.map(item => ({
+                        id: item.id.toString(),
+                        itemName: item.partName,
+                        preferredBrand: item.preferredBrand,
+                        notes: item.remark,
+                        quantity: item.quantity,
+                        imageUrl: item.image1Url || undefined,
+                      })),
+                      media: [],
+                    };
+                    return (
+                      <InquiryCard
+                        key={inquiry.id}
+                        inquiry={inquiry}
+                        isExpanded={expandedInquiryId === inquiry.id}
+                        onToggle={() => handleToggleInquiry(inquiry.id)}
+                        onEdit={handleEditInquiry}
+                        onView={handleViewInquiry}
+                        onApprove={handleApproveInquiry}
+                        onReRequest={handleReRequestInquiry}
+                        showNumberPlate={true}
+                        action="approve"
+                      />
+                    );
+                  })
+                ) : (
+                  <div className="bg-[#f5f5f5] rounded-[12px] p-[32px] text-center">
+                    <p className="text-[16px] font-medium text-[#2b2b2b] mb-[8px]">No Inquiries Found</p>
+                    <p className="text-[14px] text-[#99a2b6]">Your inquiries will appear here</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -428,6 +490,12 @@ export default function InquiriesPage() {
             {activeTab === 'disputes' && (
               /* Disputes List */
               <div className="flex flex-col gap-[16px]">
+                {/* No disputes found message */}
+                <div className="bg-[#f5f5f5] rounded-[12px] p-[32px] text-center">
+                  <p className="text-[16px] font-medium text-[#2b2b2b] mb-[8px]">No Disputes Found</p>
+                  <p className="text-[14px] text-[#99a2b6]">Your disputes will appear here</p>
+                </div>
+                {/* Keeping disputes for future use - uncomment below when ready
                 {mockDisputes.map((dispute) => (
                   <DisputeCard
                     key={dispute.id}
@@ -438,6 +506,7 @@ export default function InquiriesPage() {
                     onChat={handleChatDispute}
                   />
                 ))}
+                */}
               </div>
             )}
           </div>
@@ -446,6 +515,16 @@ export default function InquiriesPage() {
           <NavigationBar role='owner' />
         </div>
       </div>
+
+      {/* Filters Overlay */}
+      <FiltersOverlay
+        isOpen={showFiltersOverlay}
+        onClose={() => setShowFiltersOverlay(false)}
+        onApply={(filters) => {
+          console.log('Filters applied:', filters);
+          // TODO: Apply filters to inquiries/quotes/disputes
+        }}
+      />
     </div>
   );
 }

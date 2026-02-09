@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import CameraScannerOverlay from './CameraScannerOverlay';
 import SuccessOverlay from './SuccessOverlay';
+import Image from 'next/image';
 
 interface RequestPartOverlayProps {
   isOpen: boolean;
@@ -513,153 +514,179 @@ const PartRequestAccordion = ({
             )}
           </div>
 
-          {/* Remark Input */}
+          {/* Remark Input with Record Button */}
           <div className="relative">
-            <div
-              className={`border rounded-[8px] px-[16px] py-[14px] transition-colors ${
-                item.hasAttemptedSubmit && !item.remark.trim()
-                  ? 'border-[#e5383b] bg-[#ffe0e0]'
-                  : item.remark
-                  ? 'border-[#e5383b]'
-                  : 'border-[#d3d3d3]'
-              }`}
-            >
-              {item.remark && (
-                <label
-                  className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282]"
+            {(item.remark || item.audioUrl) && (
+              <label
+                className="absolute -top-[8px] left-[12px] bg-white px-[4px] text-[11px] text-[#828282] z-10"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Remark
+              </label>
+            )}
+            
+            {/* Normal input with Record button when no audio and not recording */}
+            {!isRecording && !item.audioUrl && (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={item.remark}
+                  onChange={(e) => onUpdate(item.id, { remark: e.target.value })}
+                  placeholder={item.remark ? '' : 'Remark'}
+                  className={`w-full px-[16px] py-[14px] pr-[100px] border ${
+                    item.hasAttemptedSubmit && !item.remark.trim()
+                      ? 'border-[#e5383b] bg-[#ffe0e0]'
+                      : item.remark
+                      ? 'border-[#e5383b]'
+                      : 'border-[#d3d3d3]'
+                  } rounded-[8px] text-[15px] text-black outline-none focus:border-[#e5383b] transition-colors placeholder:text-[#828282]`}
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                />
+                <button
+                  onClick={() => onStartRecording(item.id)}
+                  disabled={isRecording && recordingPartId !== item.id}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 w-[90px] h-[50px] bg-[#e5383b] rounded-[6px] flex items-center justify-center gap-[4px] hover:bg-[#c82d30] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  title="Record audio"
+                >
+                  <MicrophoneIcon /><span className="text-white text-[13px]">Record</span>
+                </button>
+              </div>
+            )}
+
+            {/* Recording state */}
+            {isRecording && recordingPartId === item.id && (
+              <div className="flex items-center gap-[12px] border border-[#e5383b] rounded-[8px] px-[16px] py-[10px] bg-[#fff5f5]">
+                <div className="w-[12px] h-[12px] bg-[#e5383b] rounded-full animate-pulse" />
+                <span
+                  className="flex-1 text-[15px] text-[#e5383b] font-medium"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
-                  Remark
-                </label>
-              )}
-              <input
-                type="text"
-                value={item.remark}
-                onChange={(e) => onUpdate(item.id, { remark: e.target.value })}
-                placeholder={item.remark ? '' : 'Remark'}
-                className={`w-full outline-none text-[15px] text-black placeholder:text-[#828282] ${
-                  item.hasAttemptedSubmit && !item.remark.trim() ? 'bg-transparent' : ''
-                }`}
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              />
-            </div>
-            {item.hasAttemptedSubmit && !item.remark.trim() && (
+                  Recording... {formatTime(recordingTime)}
+                </span>
+                <button
+                  onClick={onStopRecording}
+                  className="w-[40px] h-[32px] bg-[#e5383b] rounded-[6px] flex items-center justify-center hover:bg-[#c82d30] transition-colors"
+                  title="Stop recording"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="6" width="12" height="12" rx="2" fill="white"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Simple input when audio exists (no Record button) */}
+            {item.audioUrl && !isRecording && (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={item.remark}
+                  onChange={(e) => onUpdate(item.id, { remark: e.target.value })}
+                  placeholder={item.remark ? '' : 'Remark'}
+                  className={`w-full px-[16px] py-[14px] border ${
+                    item.remark ? 'border-[#e5383b]' : 'border-[#d3d3d3]'
+                  } rounded-[8px] text-[15px] text-black outline-none focus:border-[#e5383b] transition-colors placeholder:text-[#828282]`}
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                />
+              </div>
+            )}
+
+            {item.hasAttemptedSubmit && !item.remark.trim() && !item.audioUrl && (
               <p className="text-[12px] text-[#e5383b] mt-[4px]" style={{ fontFamily: "'Inter', sans-serif" }}>
                 Please add remark
               </p>
             )}
           </div>
 
-          {/* Audio Section */}
-          {!item.audioUrl ? (
-            /* Audio Recording Button */
-            <button
-              onClick={() => {
-                if (isRecording && recordingPartId === item.id) {
-                  onStopRecording();
-                } else if (!isRecording) {
-                  onStartRecording(item.id);
-                }
-              }}
-              disabled={isRecording && recordingPartId !== item.id}
-              className={`w-full h-[48px] rounded-[8px] flex items-center justify-center gap-[8px] transition-all ${
-                isRecording && recordingPartId === item.id
-                  ? 'bg-[#e5383b]'
-                  : isRecording && recordingPartId !== item.id
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-[#e5383b] hover:bg-[#c82d30]'
-              }`}
-              style={{
-                background: isRecording && recordingPartId === item.id
-                  ? 'linear-gradient(90deg, #e5383b 0%, #ff6b6b 50%, #e5383b 100%)'
-                  : undefined,
-              }}
-            >
-              {!(isRecording && recordingPartId === item.id) && <MicrophoneIcon />}
-              <span
-                className="text-white font-medium text-[14px]"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              >
-                {isRecording && recordingPartId === item.id
-                  ? `Recording... (${formatTime(recordingTime)})`
-                  : 'Press To record Audio'}
-              </span>
-            </button>
-          ) : (
-            /* Audio Player */
-            <div className="flex items-center gap-[12px] px-[12px] py-[8px] bg-[#f8f8f8] rounded-[12px]">
-              {/* Play/Pause Button */}
-              <button
-                onClick={togglePlayPause}
-                className="w-[40px] h-[40px] bg-[#e5383b] rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[#c82d30] transition-colors"
-              >
-                {isPlaying ? <PauseIcon /> : <PlayIcon />}
-              </button>
-
-              {/* Waveform */}
-              <div className="flex-1">
-                <AudioWaveform isPlaying={isPlaying} />
+          {/* Media Upload Section */}
+          <div className="grid grid-cols-4 gap-[12px]">
+            {/* Audio Recording Card */}
+            {item.audioUrl && (
+              <div className="relative aspect-square rounded-[8px] overflow-hidden bg-[#fff5f5] border border-[#e5383b] flex flex-col items-center justify-center">
+                <button 
+                  onClick={togglePlayPause}
+                  className="w-[32px] h-[32px] bg-[#e5383b] rounded-full flex items-center justify-center hover:bg-[#c82d30] transition-colors"
+                >
+                  {isPlaying ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="6" y="5" width="4" height="14" rx="1" fill="white"/>
+                      <rect x="14" y="5" width="4" height="14" rx="1" fill="white"/>
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8 5V19L19 12L8 5Z" fill="white"/>
+                    </svg>
+                  )}
+                </button>
+                <span className="text-[10px] text-[#e5383b] font-medium mt-[4px]">
+                  {formatTime(item.audioDuration)}
+                </span>
+                <button
+                  onClick={deleteAudio}
+                  className="absolute top-[4px] right-[4px] w-[20px] h-[20px] bg-[#e5383b] rounded-[4px] flex items-center justify-center hover:bg-[#c82d30]"
+                  title="Delete recording"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
+                {/* Hidden Audio Element */}
+                <audio ref={audioRef} src={item.audioUrl || undefined} />
               </div>
+            )}
 
-              {/* Duration */}
-              <span
-                className="text-[14px] text-[#434343] font-medium whitespace-nowrap"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              >
-                {formatTime(item.audioDuration)}
-              </span>
+            {/* Uploaded Images */}
+            {item.imageUrls.map((imageUrl, imgIndex) => (
+              imageUrl && (
+                <div
+                  key={imgIndex}
+                  className="relative aspect-square rounded-[8px] overflow-hidden bg-[#f5f5f5]"
+                >
+                  <img
+                    src={imageUrl}
+                    alt={`Upload ${imgIndex + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    onClick={() => deleteImage(imgIndex)}
+                    className="absolute bottom-[4px] right-[4px] w-[24px] h-[24px] bg-[#e5383b] rounded-[4px] flex items-center justify-center hover:bg-[#c82d30]"
+                  >
+                    <TrashIcon color="white" />
+                  </button>
+                </div>
+              )
+            ))}
 
-              {/* Delete Button */}
-              <button
-                onClick={deleteAudio}
-                className="p-[4px] hover:bg-[#ffecec] rounded-[4px] transition-colors"
-              >
-                <TrashIcon />
-              </button>
-
-              {/* Hidden Audio Element */}
-              <audio ref={audioRef} src={item.audioUrl || undefined} />
-            </div>
-          )}
-
-          {/* Image Upload */}
-          <div className="flex gap-[12px] justify-center">
-            {[0, 1, 2].map((imgIndex) => (
-              <div key={imgIndex} className="relative">
+            {/* Single Add Button - shows when image limits not reached */}
+            {item.imageUrls.filter(url => url).length < 3 && (
+              <div className="relative">
                 <input
                   type="file"
                   accept="image/*"
-                  ref={(el) => { fileInputRefs.current[imgIndex] = el; }}
+                  ref={(el) => { fileInputRefs.current[0] = el; }}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) handleImageUpload(imgIndex, file);
+                    if (file) {
+                      // Find first empty slot
+                      const emptyIndex = item.imageUrls.findIndex(url => !url);
+                      if (emptyIndex !== -1) {
+                        handleImageUpload(emptyIndex, file);
+                      }
+                    }
                   }}
                   className="hidden"
                 />
                 <button
-                  onClick={() => !item.imageUrls[imgIndex] && fileInputRefs.current[imgIndex]?.click()}
-                  className={`w-[100px] h-[100px] border rounded-[8px] flex items-center justify-center overflow-hidden transition-colors ${
-                    item.imageUrls[imgIndex] ? 'border-transparent' : 'border-[#d3d3d3] hover:border-[#e5383b]'
-                  }`}
-                  style={{
-                    background: item.imageUrls[imgIndex]
-                      ? `url(${item.imageUrls[imgIndex]}) center/cover`
-                      : 'repeating-conic-gradient(#f0f0f0 0% 25%, transparent 0% 50%) 50% / 20px 20px',
-                  }}
+                  onClick={() => fileInputRefs.current[0]?.click()}
+                  className="aspect-square rounded-[8px] border-2 border-dashed border-[#e0e0e0] flex flex-col items-center justify-center hover:border-[#e5383b] transition-colors bg-[#fafafa]"
                 >
-                  {!item.imageUrls[imgIndex] && <PlusIcon />}
+                  <PlusIcon />
+                  <span className="text-[10px] text-[#828282] mt-[2px]">
+                    {item.imageUrls.filter(url => url).length}/3 img
+                  </span>
                 </button>
-
-                {item.imageUrls[imgIndex] && (
-                  <button
-                    onClick={() => deleteImage(imgIndex)}
-                    className="absolute bottom-[8px] right-[8px] w-[28px] h-[28px] bg-[#e5383b] rounded-[6px] flex items-center justify-center hover:bg-[#c82d30] transition-colors"
-                  >
-                    <TrashIcon color="white" />
-                  </button>
-                )}
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}
@@ -1077,9 +1104,9 @@ export default function RequestPartOverlay({
                 onClick={() => setShowCameraScanner(true)}
                 className="flex items-center justify-center gap-[4px] sm:gap-[6px] bg-[#e5383b] text-white px-[10px] sm:px-[12px] py-[10px] sm:py-[12px] rounded-[12px] hover:bg-[#c82d30] transition-colors flex-shrink-0"
               >
-                <QRScanIcon />
+                <Image src="/assets/icons/Union.svg" alt="Scan" width={20} height={20} />
                 <span
-                  className="font-semibold text-[12px] sm:text-[14px] whitespace-nowrap hidden sm:inline"
+                  className="font-semibold text-[12px] sm:text-[14px] whitespace-nowrap sm:inline"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
                   Scan

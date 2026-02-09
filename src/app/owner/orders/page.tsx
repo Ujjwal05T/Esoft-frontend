@@ -250,6 +250,12 @@ export default function OrdersPage() {
 
           {/* Orders List */}
           <div className="flex-1 p-4 pb-[100px] md:pb-4 space-y-4">
+            {/* No orders found message */}
+            <div className="bg-white rounded-[12px] p-[32px] text-center">
+              <p className="text-[16px] font-medium text-[#2b2b2b] mb-[8px]">No Orders Found</p>
+              <p className="text-[14px] text-[#99a2b6]">Your orders will appear here</p>
+            </div>
+            {/* Keeping orders for future use - uncomment below when ready
             {orders.map((order) => (
               <OrderCard
                 key={order.id}
@@ -258,6 +264,7 @@ export default function OrdersPage() {
                 onDownloadInvoice={handleDownloadInvoice}
               />
             ))}
+            */}
           </div>
 
           {/* Navigation Bar */}
