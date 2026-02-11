@@ -15,6 +15,7 @@ export default function QuoteDetailsPage() {
 
   const [quote, setQuote] = useState<QuoteApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     async function fetchQuote() {
@@ -23,6 +24,13 @@ export default function QuoteDetailsPage() {
         const result = await getQuoteById(parseInt(quoteId));
         if (result.success && result.data) {
           setQuote(result.data);
+          // Pre-select all available items
+          const availableIds = new Set(
+            result.data.items
+              .filter((i) => i.availability === 'in_stock')
+              .map((i) => i.id)
+          );
+          setSelectedItems(availableIds);
         }
       } catch (error) {
         console.error('Failed to fetch quote:', error);
@@ -34,22 +42,32 @@ export default function QuoteDetailsPage() {
   }, [quoteId]);
 
   // ── Derived state ──────────────────────────────────────────
-  const isExpired = quote?.expiresAt ? new Date(quote.expiresAt) < new Date() : false;
+  const isExpired = quote?.expiresAt
+    ? new Date(quote.expiresAt) < new Date()
+    : false;
   const isAccepted = quote?.status === 'approved';
 
-  const partsSubtotal = quote?.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) || 0;
+  const availableItems =
+    quote?.items.filter((i) => i.availability === 'in_stock') || [];
+  const unavailableItems =
+    quote?.items.filter((i) => i.availability !== 'in_stock') || [];
+
+  const partsSubtotal =
+    quote?.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) || 0;
   const additionalCharges = quote
     ? quote.packingCharges + quote.forwardingCharges + quote.shippingCharges
     : 0;
+  const grandTotal = quote?.totalAmount || 0;
 
   // Latest estimated delivery across all items
   const deliveryByDate = quote?.items.reduce<string | null>((max, item) => {
     if (!item.estimatedDelivery) return max;
-    if (!max || new Date(item.estimatedDelivery) > new Date(max)) return item.estimatedDelivery;
+    if (!max || new Date(item.estimatedDelivery) > new Date(max))
+      return item.estimatedDelivery;
     return max;
   }, null);
 
-  // "Expires in X hours / Y days" countdown (only while still active)
+  // "Expires in X hours / Y days" countdown
   const getExpiresInText = () => {
     if (!quote?.expiresAt) return null;
     const diff = new Date(quote.expiresAt).getTime() - Date.now();
@@ -58,21 +76,17 @@ export default function QuoteDetailsPage() {
     return hours < 24 ? `${hours} hours` : `${Math.floor(hours / 24)} days`;
   };
 
-  // Which charge types are non-zero (for the breakdown label)
-  const chargesLabels: string[] = [];
-  if (quote?.shippingCharges) chargesLabels.push('Shipping');
-  if (quote?.packingCharges) chargesLabels.push('Packaging');
-  if (quote?.forwardingCharges) chargesLabels.push('Forwarding');
-
   // ── Helpers ─────────────────────────────────────────────────
   const formatPrice = (price: number) => `Rs. ${Math.round(price)}`;
 
   const formatShortDate = (date: string) =>
-    new Date(date).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).toLowerCase();
+    new Date(date)
+      .toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+      .toLowerCase();
 
   const formatDeliveryDate = (date: string | null) => {
     if (!date) return '-';
@@ -90,13 +104,27 @@ export default function QuoteDetailsPage() {
     return 'pending_review' as const;
   };
 
+  const toggleItem = (itemId: number) => {
+    setSelectedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
   // ── Loading ─────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="bg-[#f5f3f4] relative min-h-screen w-full flex items-center justify-center">
+      <div className="bg-[#f5f5f5] relative min-h-screen w-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e5383b] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading quote details...</p>
+          <p style={{ color: '#666', fontFamily: "'Inter', sans-serif" }}>
+            Loading quote details...
+          </p>
         </div>
       </div>
     );
@@ -105,13 +133,40 @@ export default function QuoteDetailsPage() {
   // ── Not found ───────────────────────────────────────────────
   if (!quote) {
     return (
-      <div className="bg-[#f5f3f4] relative min-h-screen w-full flex items-center justify-center">
+      <div className="bg-[#f5f5f5] relative min-h-screen w-full flex items-center justify-center">
         <div className="text-center px-4">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Quote Not Found</h2>
-          <p className="text-gray-600 mb-6">The quote you're looking for doesn't exist.</p>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 600,
+              color: '#333',
+              fontFamily: "'Inter', sans-serif",
+              marginBottom: 8,
+            }}
+          >
+            Quote Not Found
+          </h2>
+          <p
+            style={{
+              color: '#666',
+              fontFamily: "'Inter', sans-serif",
+              marginBottom: 24,
+            }}
+          >
+            The quote you&apos;re looking for doesn&apos;t exist.
+          </p>
           <button
             onClick={() => router.back()}
-            className="bg-[#e5383b] text-white px-6 py-2 rounded-lg hover:bg-[#d32f2f] transition"
+            style={{
+              backgroundColor: '#e5383b',
+              color: '#fff',
+              padding: '10px 24px',
+              borderRadius: 8,
+              border: 'none',
+              fontWeight: 600,
+              fontFamily: "'Inter', sans-serif",
+              cursor: 'pointer',
+            }}
           >
             Go Back
           </button>
@@ -122,234 +177,1134 @@ export default function QuoteDetailsPage() {
 
   // ── Render ──────────────────────────────────────────────────
   return (
-    <div className="bg-[#f5f3f4] relative min-h-screen w-full overflow-x-hidden">
+    <div
+      style={{
+        backgroundColor: '#f5f5f5',
+        position: 'relative',
+        minHeight: '100vh',
+        width: '100%',
+        overflowX: 'hidden',
+      }}
+    >
       {/* Sidebar (desktop) */}
       <Sidebar />
 
       <div className="md:pl-[240px] lg:pl-[280px]">
-        <div className="max-w-[440px] md:max-w-none mx-auto md:mx-0 bg-white md:bg-[#f5f3f4]">
-
-          {/* Mobile header */}
-          <div className="md:hidden sticky top-0 w-full bg-white h-[55px] z-50 shadow-sm">
-            <div className="h-[15px] bg-white" />
-            <div className="h-[24px] flex items-start justify-between px-[16px]">
-              <button onClick={() => router.back()} className="w-[24px] h-[24px] flex items-center justify-center">
-                <Image src="/assets/icons/arrow-back.svg" alt="Back" width={24} height={24} />
-              </button>
-              <h1 className="font-semibold text-[19px] text-[#E5383B] tracking-[-0.64px]">Quote Details</h1>
-              <button className="w-[24px] h-[24px] flex items-center justify-center">
-                <Image src="/assets/icons/search.svg" alt="Search" width={24} height={24} />
+        <div
+          style={{ maxWidth: 440, margin: '0 auto' }}
+          className="md:max-w-none md:mx-0"
+        >
+          {/* ───── Mobile Header ───── */}
+          <div
+            className="md:hidden"
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 50,
+              backgroundColor: '#fff',
+              paddingBottom: 16,
+              paddingTop: 10,
+              paddingLeft: 16,
+              paddingRight: 16,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <button
+                  onClick={() => router.back()}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0,
+                  }}
+                >
+                  <Image
+                    src="/assets/icons/arrow-back.svg"
+                    alt="Back"
+                    width={23}
+                    height={18}
+                  />
+                </button>
+                <h1
+                  style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 600,
+                    fontSize: 24,
+                    color: '#e5383b',
+                    lineHeight: '36px',
+                    margin: 0,
+                  }}
+                >
+                  Quote Details
+                </h1>
+              </div>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                <Image
+                  src="/assets/icons/search.svg"
+                  alt="Search"
+                  width={24}
+                  height={24}
+                />
               </button>
             </div>
           </div>
 
-          {/* Desktop header */}
-          <div className="hidden md:flex items-center justify-between px-[24px] lg:px-[32px] pt-[24px] pb-[8px]">
-            <button onClick={() => router.back()} className="flex items-center gap-2 text-[#e5383b] hover:opacity-80 transition">
-              <Image src="/assets/icons/arrow-back.svg" alt="Back" width={24} height={24} />
-              <span className="font-semibold text-[16px]">Back</span>
+          {/* ───── Desktop Header ───── */}
+          <div
+            className="hidden md:flex"
+            style={{
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '24px 32px 8px',
+            }}
+          >
+            <button
+              onClick={() => router.back()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'none',
+                border: 'none',
+                color: '#e5383b',
+                cursor: 'pointer',
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 600,
+                fontSize: 16,
+              }}
+            >
+              <Image
+                src="/assets/icons/arrow-back.svg"
+                alt="Back"
+                width={24}
+                height={24}
+              />
+              Back
             </button>
-            <h1 className="font-semibold text-[22px] text-[#E5383B]">Quote Details</h1>
-            <div className="w-24" />
+            <h1
+              style={{
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 600,
+                fontSize: 22,
+                color: '#e5383b',
+                margin: 0,
+              }}
+            >
+              Quote Details
+            </h1>
+            <div style={{ width: 96 }} />
           </div>
 
-          {/* Page body */}
-          <div className="pt-[0px] pb-[117px] md:pb-[24px] px-[16px] md:px-[24px] lg:px-[32px] bg-[#f5f3f4]">
-            <div className="flex flex-col gap-[16px] py-[16px]">
-
-              {/* ── Header card: vehicle info + status ── */}
-              <div className="bg-white rounded-[12px] p-[16px]">
-                <div className="flex items-start justify-between mb-[4px]">
+          {/* ───── Page Body ───── */}
+          <div
+            style={{
+              paddingTop: 0,
+              paddingBottom: isExpired ? 80 : 80,
+              paddingLeft: 16,
+              paddingRight: 16,
+              backgroundColor: '#f5f5f5',
+            }}
+            className="md:px-[24px] lg:px-[32px] md:pb-[24px]"
+          >
+            {/* ════════════════════════════════════════
+                QUOTE INFO CARD (shared header)
+                ════════════════════════════════════════ */}
+            <div
+              style={{
+                backgroundColor: '#fff',
+                border: '1px solid #d3d3d3',
+                borderRadius: 10,
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+              }}
+            >
+              {/* Top row: vehicle info + status badge */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                }}
+              >
+                {/* Left: vehicle + quote info */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div>
-                    <p className="font-semibold text-[14px] text-[#4c4c4c]">{quote.vehicleName}</p>
-                    <p className="font-bold text-[17px] text-[#e5383b]">{quote.plateNumber}</p>
+                    <p
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 600,
+                        fontSize: 14,
+                        color: '#4c4c4c',
+                        margin: 0,
+                        lineHeight: 'normal',
+                      }}
+                    >
+                      {quote.vehicleName}
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 700,
+                        fontSize: 17,
+                        color: '#e5383b',
+                        margin: 0,
+                        lineHeight: 'normal',
+                      }}
+                    >
+                      {quote.plateNumber}
+                    </p>
                   </div>
-                  <StatusBadge status={getBadgeStatus()} />
+                  <div>
+                    <p
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 700,
+                        fontSize: 14,
+                        color: '#e8353b',
+                        margin: 0,
+                        lineHeight: 'normal',
+                      }}
+                    >
+                      {quote.quoteNumber}
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500,
+                        fontSize: 12,
+                        color: '#828282',
+                        margin: 0,
+                        lineHeight: 'normal',
+                      }}
+                    >
+                      {isExpired
+                        ? `expired: ${formatShortDate(quote.expiresAt!)}`
+                        : `Submitted: ${formatShortDate(quote.createdAt)}`}
+                    </p>
+                  </div>
                 </div>
 
-                <p className="font-bold text-[14px] text-[#e5383b] mt-[4px]">{quote.quoteNumber}</p>
-
-                {isExpired ? (
-                  <p className="font-medium text-[12px] text-[#828282] mt-[2px]">
-                    expired: {formatShortDate(quote.expiresAt!)}
-                  </p>
-                ) : (
-                  <>
-                    <p className="font-medium text-[12px] text-[#828282] mt-[2px]">
-                      Submitted: {formatShortDate(quote.createdAt)}
+                {/* Right: status badge + expires text */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: 5,
+                    flexShrink: 0,
+                  }}
+                >
+                  <StatusBadge status={getBadgeStatus()} />
+                  {!isExpired && quote.expiresAt && getExpiresInText() && (
+                    <p
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500,
+                        fontSize: 12,
+                        color: '#000',
+                        margin: 0,
+                        textAlign: 'center',
+                        lineHeight: '15px',
+                        letterSpacing: '-0.41px',
+                      }}
+                    >
+                      Expires in{' '}
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: '#e5383b',
+                        }}
+                      >
+                        {getExpiresInText()}
+                      </span>
                     </p>
-                    {quote.expiresAt && getExpiresInText() && (
-                      <p className="font-medium text-[12px] text-[#e5383b] mt-[2px]">
-                        Expires in <span className="font-bold">{getExpiresInText()}</span>
-                      </p>
-                    )}
-                  </>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* ════════════════════════════════════════════════════
-                  EXPIRED STATE
-                  ════════════════════════════════════════════════════ */}
+              {/* Divider */}
+              <div style={{ height: 1, backgroundColor: '#dadada' }} />
+
+              {/* ════════════ EXPIRED BOTTOM SECTION ════════════ */}
               {isExpired && (
-                <>
-                  {/* Warning banner + Grand Total label */}
-                  <div className="bg-white rounded-[12px] p-[16px]">
-                    <div className="flex items-start justify-between">
-                      <p className="font-medium text-[13px] text-[#e5383b] flex-1 mr-[12px]">
-                        The quote is expired. Kindly re-request for current
-                      </p>
-                      <div className="text-right shrink-0">
-                        <p className="font-medium text-[12px] text-[#828282]">Grand Total</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Expired items — no prices, just name + qty + description + brand */}
-                  <div className="bg-white rounded-[12px] overflow-hidden">
-                    {quote.items.map((item, index) => (
-                      <div key={item.id}>
-                        {index > 0 && <div className="h-px bg-[#f0f0f0] mx-[16px]" />}
-                        <div className="px-[16px] py-[14px]">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="font-semibold text-[15px] text-[#2b2b2b]">
-                                {item.partName} <span className="text-[#828282]">x {item.quantity}</span>
-                              </p>
-                              {item.description && (
-                                <p className="font-medium text-[13px] text-[#828282] mt-[2px]">{item.description}</p>
-                              )}
-                            </div>
-                            {item.brand && (
-                              <span className="px-[10px] py-[3px] rounded-[6px] border border-[#828282] text-[12px] font-medium text-[#828282] shrink-0 ml-[8px]">
-                                {item.brand}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Re-request CTA */}
-                  <button
-                    className="w-full bg-[#e5383b] text-white h-[52px] rounded-[10px] font-semibold text-[15px] hover:bg-[#c82d30] transition"
-                    onClick={() => console.log('Re-request quote:', quote.id)}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 28,
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: "'Inter', sans-serif",
+                      fontWeight: 500,
+                      fontSize: 11,
+                      color: '#e5383b',
+                      margin: 0,
+                      flex: 1,
+                      lineHeight: 'normal',
+                    }}
                   >
-                    RE-REQUEST
-                  </button>
-                </>
+                    The quote is expired. Kindly re-request for current
+                    availability and prices
+                  </p>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                      flexShrink: 0,
+                      width: 75,
+                      color: '#a8a8a8',
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500,
+                        fontSize: 11,
+                        margin: 0,
+                        lineHeight: 'normal',
+                      }}
+                    >
+                      Grand Total
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 700,
+                        fontSize: 14,
+                        margin: 0,
+                        lineHeight: 'normal',
+                      }}
+                    >
+                      {formatPrice(grandTotal)}
+                    </p>
+                  </div>
+                </div>
               )}
 
-              {/* ════════════════════════════════════════════════════
-                  ACTIVE STATE
-                  ════════════════════════════════════════════════════ */}
+              {/* ════════════ ACTIVE BOTTOM SECTION (financial summary) ════════════ */}
               {!isExpired && (
                 <>
-                  {/* Summary card: delivery / subtotal / charges / grand total */}
-                  <div className="bg-white rounded-[12px] p-[16px]">
-                    <div className="flex items-start justify-between mb-[12px]">
-                      <div>
-                        <p className="font-medium text-[12px] text-[#828282]">Delivery by:</p>
-                        <p className="font-bold text-[14px] text-[#e5383b]">{formatShortDate(deliveryByDate || quote.createdAt)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-[12px] text-[#828282]">Parts Subtotal</p>
-                        <p className="font-bold text-[16px] text-[#2b2b2b]">{formatPrice(partsSubtotal)}</p>
-                      </div>
+                  {/* Row 1: Delivery by + Parts Subtotal */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 500,
+                          fontSize: 11,
+                          color: '#000',
+                          margin: 0,
+                          lineHeight: 'normal',
+                        }}
+                      >
+                        Delivery by:
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 700,
+                          fontSize: 14,
+                          color: '#e5383b',
+                          margin: 0,
+                          lineHeight: 'normal',
+                        }}
+                      >
+                        {formatShortDate(deliveryByDate || quote.createdAt)}
+                      </p>
                     </div>
-
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium text-[12px] text-[#828282]">Additional Charges (Shipping and Labor)</p>
-                        <p className="font-bold text-[14px] text-[#e5383b]">{formatPrice(additionalCharges)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-[12px] text-[#828282]">Grand Total</p>
-                        <p className="font-bold text-[18px] text-[#2b2b2b]">{formatPrice(quote.totalAmount)}</p>
-                      </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 500,
+                          fontSize: 11,
+                          color: '#000',
+                          margin: 0,
+                          lineHeight: 'normal',
+                        }}
+                      >
+                        Parts Subtotal
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 700,
+                          fontSize: 14,
+                          color: '#e5383b',
+                          margin: 0,
+                          lineHeight: 'normal',
+                        }}
+                      >
+                        {formatPrice(partsSubtotal)}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Items list */}
-                  <div className="bg-white rounded-[12px] overflow-hidden">
-                    {quote.items.map((item, index) => (
-                      <div key={item.id}>
-                        {index > 0 && <div className="h-px bg-[#f0f0f0] mx-[16px]" />}
-                        <div className="px-[16px] py-[14px]">
-                          {/* Brand badge + availability badge */}
-                          <div className="flex items-center justify-between mb-[6px]">
+                  {/* Row 2: Additional Charges + Grand Total */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 500,
+                          fontSize: 11,
+                          color: '#000',
+                          margin: 0,
+                          lineHeight: 'normal',
+                        }}
+                      >
+                        Additional Charges (Shipping and Labor)
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 700,
+                          fontSize: 14,
+                          color: '#e5383b',
+                          margin: 0,
+                          lineHeight: 'normal',
+                        }}
+                      >
+                        {formatPrice(additionalCharges)}
+                      </p>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                        width: 75,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 500,
+                          fontSize: 11,
+                          color: '#000',
+                          margin: 0,
+                          lineHeight: 'normal',
+                        }}
+                      >
+                        Grand Total
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 700,
+                          fontSize: 14,
+                          color: '#e5383b',
+                          margin: 0,
+                          lineHeight: 'normal',
+                        }}
+                      >
+                        {formatPrice(grandTotal)}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* ════════════════════════════════════════
+                ITEMS LIST
+                ════════════════════════════════════════ */}
+            <div
+              style={{
+                marginTop: 8,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+              }}
+            >
+              {/* ── ACTIVE STATE: items with checkboxes ── */}
+              {!isExpired && (
+                <>
+                  {/* Available items */}
+                  {availableItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => toggleItem(item.id)}
+                      style={{
+                        backgroundColor: '#fff',
+                        borderRadius: 8,
+                        padding: '13px 11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        width: '100%',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {/* Checkbox */}
+                      <div
+                        style={{
+                          width: 19,
+                          height: 18,
+                          borderRadius: 5,
+                          border: '1px solid #e5383b',
+                          flexShrink: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: selectedItems.has(item.id)
+                            ? '#e5383b'
+                            : 'transparent',
+                        }}
+                      >
+                        {selectedItems.has(item.id) && (
+                          <svg
+                            width="12"
+                            height="9"
+                            viewBox="0 0 12 9"
+                            fill="none"
+                          >
+                            <path
+                              d="M1 4L4.5 7.5L11 1"
+                              stroke="white"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </div>
+
+                      {/* Item content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 10,
+                          }}
+                        >
+                          {/* Brand + Availability badges */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
                             {item.brand ? (
-                              <span className="px-[10px] py-[3px] rounded-[6px] bg-[#2b2b2b] text-[12px] font-medium text-white">
-                                {item.brand}
-                              </span>
-                            ) : <span />}
-                            <span
-                              className={`px-[10px] py-[3px] rounded-[6px] text-[12px] font-medium text-white ${
-                                item.availability === 'in_stock' ? 'bg-[#289d27]' : 'bg-[#e5383b]'
-                              }`}
+                              <div
+                                style={{
+                                  backgroundColor: '#e4e4e4',
+                                  borderRadius: 7,
+                                  padding: '4px 12px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontFamily: "'Inter', sans-serif",
+                                    fontWeight: 500,
+                                    fontSize: 12,
+                                    color: '#000',
+                                    lineHeight: '15px',
+                                    letterSpacing: '-0.41px',
+                                  }}
+                                >
+                                  {item.brand}
+                                </span>
+                              </div>
+                            ) : (
+                              <span />
+                            )}
+                            <div
+                              style={{
+                                backgroundColor: '#289d27',
+                                borderRadius: 7,
+                                padding: '4px 12px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
                             >
-                              {item.availability === 'in_stock' ? 'Available' : 'Unavailable'}
+                              <span
+                                style={{
+                                  fontFamily: "'Inter', sans-serif",
+                                  fontWeight: 500,
+                                  fontSize: 12,
+                                  color: '#fff',
+                                  lineHeight: '15px',
+                                  letterSpacing: '-0.41px',
+                                }}
+                              >
+                                Available
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Part name + price */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontFamily: "'Inter', sans-serif",
+                              fontWeight: 700,
+                              fontSize: 14,
+                            }}
+                          >
+                            <span style={{ color: '#323232' }}>
+                              {item.partName}
+                            </span>
+                            <span style={{ color: '#000', whiteSpace: 'nowrap' }}>
+                              {formatPrice(item.unitPrice)}
                             </span>
                           </div>
 
-                          {/* Part name + unit price */}
-                          <div className="flex items-center justify-between">
-                            <p className="font-semibold text-[15px] text-[#2b2b2b]">{item.partName}</p>
-                            <p className="font-bold text-[15px] text-[#2b2b2b]">{formatPrice(item.unitPrice)}</p>
-                          </div>
-
-                          {/* Expected delivery + quantity */}
-                          <div className="flex items-center justify-between mt-[4px]">
-                            <p className="font-medium text-[12px] text-[#828282]">
-                              Exp. Delivery {formatDeliveryDate(item.estimatedDelivery)}
-                            </p>
-                            <p className="font-medium text-[12px] text-[#828282]">
+                          {/* Delivery date + quantity */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                fontSize: 12,
+                                color: '#939393',
+                                lineHeight: 'normal',
+                              }}
+                            >
+                              Exp. Delivery{' '}
+                              {formatDeliveryDate(item.estimatedDelivery)}
+                            </span>
+                            <span
+                              style={{
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                fontSize: 12,
+                                color: '#828282',
+                                lineHeight: 'normal',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
                               {item.quantity} of {item.quantity} pcs
-                            </p>
+                            </span>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </button>
+                  ))}
 
-                  {/* Additional Charges breakdown (only if any charges exist) */}
-                  {additionalCharges > 0 && (
-                    <div className="bg-white rounded-[12px] p-[16px]">
-                      <p className="font-semibold text-[15px] text-[#2b2b2b] mb-[8px]">Additional Charges</p>
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-[13px] text-[#828282]">{chargesLabels.join(', ')}</p>
-                        <p className="font-bold text-[15px] text-[#2b2b2b]">{formatPrice(additionalCharges)}</p>
+                  {/* Unavailable items */}
+                  {unavailableItems.map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        backgroundColor: '#fff',
+                        borderRadius: 8,
+                        padding: '13px 11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        width: '100%',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {/* Checkbox (disabled style) */}
+                      <div
+                        style={{
+                          width: 19,
+                          height: 18,
+                          borderRadius: 5,
+                          border: '1px solid #b1a7a6',
+                          flexShrink: 0,
+                        }}
+                      />
+
+                      {/* Item content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 10,
+                          }}
+                        >
+                          {/* Part name + Unavailable badge */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 700,
+                                fontSize: 14,
+                                color: '#323232',
+                              }}
+                            >
+                              {item.partName}
+                            </span>
+                            <div
+                              style={{
+                                backgroundColor: '#e5383b',
+                                borderRadius: 7,
+                                padding: '4px 12px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontFamily: "'Inter', sans-serif",
+                                  fontWeight: 500,
+                                  fontSize: 12,
+                                  color: '#fff',
+                                  lineHeight: '15px',
+                                  letterSpacing: '-0.41px',
+                                }}
+                              >
+                                Unavailable
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Delivery date + quantity */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                fontSize: 12,
+                                color: '#000',
+                                lineHeight: 'normal',
+                              }}
+                            >
+                              Exp. Arrival by{' '}
+                              {formatDeliveryDate(item.estimatedDelivery)}
+                            </span>
+                            <span
+                              style={{
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                fontSize: 12,
+                                color: '#828282',
+                                lineHeight: 'normal',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              0 of {item.quantity} pcs
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  )}
-
-                  {/* Action buttons */}
-                  <div className="flex gap-[12px]">
-                    <button
-                      disabled={isAccepted}
-                      onClick={() => console.log('Approve and pay:', quote.id)}
-                      className={`flex-1 h-[52px] rounded-[10px] font-semibold text-[15px] transition ${
-                        isAccepted
-                          ? 'bg-[#828282] text-white cursor-not-allowed'
-                          : 'bg-[#e5383b] text-white hover:bg-[#c82d30]'
-                      }`}
-                    >
-                      {isAccepted ? 'ORDER PLACED' : 'APPROVE AND PAY'}
-                    </button>
-
-                    {!isAccepted && (
-                      <button
-                        onClick={() => console.log('Decline:', quote.id)}
-                        className="flex-1 h-[52px] rounded-[10px] border border-[#e5383b] text-[#e5383b] font-semibold text-[15px] hover:bg-[#fef5f5] transition"
-                      >
-                        DECLINE
-                      </button>
-                    )}
-                  </div>
+                  ))}
                 </>
               )}
 
+              {/* ── EXPIRED STATE: items with grayed style ── */}
+              {isExpired &&
+                quote.items.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 8,
+                      padding: '13px 11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      width: '100%',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* Checkbox (disabled) */}
+                    <div
+                      style={{
+                        width: 19,
+                        height: 18,
+                        borderRadius: 5,
+                        border: '1px solid #e5383b',
+                        flexShrink: 0,
+                      }}
+                    />
+
+                    {/* Item content */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                        }}
+                      >
+                        {/* Brand badge + quantity */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          {item.brand ? (
+                            <div
+                              style={{
+                                backgroundColor: '#e4e4e4',
+                                borderRadius: 7,
+                                padding: '4px 12px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontFamily: "'Inter', sans-serif",
+                                  fontWeight: 500,
+                                  fontSize: 12,
+                                  color: '#000',
+                                  lineHeight: '15px',
+                                  letterSpacing: '-0.41px',
+                                }}
+                              >
+                                {item.brand}
+                              </span>
+                            </div>
+                          ) : (
+                            <span />
+                          )}
+                          <span
+                            style={{
+                              fontFamily: "'Inter', sans-serif",
+                              fontWeight: 500,
+                              fontSize: 12,
+                              color: '#828282',
+                              lineHeight: 'normal',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {item.quantity} of {item.quantity} pcs
+                          </span>
+                        </div>
+
+                        {/* Part name + price (grayed) */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontFamily: "'Inter', sans-serif",
+                            fontWeight: 700,
+                            fontSize: 14,
+                          }}
+                        >
+                          <span style={{ color: '#323232' }}>
+                            {item.partName}
+                          </span>
+                          <span
+                            style={{
+                              color: '#b1a7a6',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {formatPrice(item.unitPrice)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
             </div>
+          </div>
+
+          {/* ════════════════════════════════════════
+              BOTTOM FIXED CTA BUTTONS
+              ════════════════════════════════════════ */}
+          <div
+            className="md:hidden"
+            style={{
+              position: 'fixed',
+              bottom: 80,
+              // top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 40,
+              maxWidth: 440,
+              margin: '0 auto',
+            }}
+          >
+            {/* Fade gradient */}
+            <div
+              style={{
+                height: 30,
+                background:
+                  'linear-gradient(to bottom, rgba(245,245,245,0), rgba(255,255,255,1))',
+                pointerEvents: 'none',
+              }}
+            />
+
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: '0 16px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 13,
+                height: 65,
+              }}
+            >
+              {isExpired ? (
+                /* RE-REQUEST button */
+                <button
+                  onClick={() => console.log('Re-request quote:', quote.id)}
+                  style={{
+                    width: 385,
+                    height: 56,
+                    borderRadius: 8,
+                    backgroundColor: '#e5383b',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "'Inter', sans-serif",
+                      fontWeight: 400,
+                      fontSize: 15,
+                      color: '#fff',
+                      textTransform: 'uppercase',
+                      letterSpacing: '-0.01px',
+                    }}
+                  >
+                    RE-REQUEST
+                  </span>
+                </button>
+              ) : (
+                <>
+                  {/* APPROVE AND PAY button */}
+                  <button
+                    disabled={isAccepted}
+                    onClick={() =>
+                      console.log('Approve and pay:', quote.id)
+                    }
+                    style={{
+                      width: 197,
+                      height: 56,
+                      borderRadius: 8,
+                      backgroundColor: isAccepted ? '#828282' : '#e5383b',
+                      border: isAccepted
+                        ? '1px solid #828282'
+                        : '1px solid #e5383b',
+                      cursor: isAccepted ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        color: '#fff',
+                        textTransform: 'uppercase',
+                        letterSpacing: '-0.01px',
+                      }}
+                    >
+                      {isAccepted ? 'ORDER PLACED' : 'APPROVE AND PAY'}
+                    </span>
+                  </button>
+
+                  {/* DECLINE button */}
+                  {!isAccepted && (
+                    <button
+                      onClick={() =>
+                        console.log('Decline:', quote.id)
+                      }
+                      style={{
+                        width: 197,
+                        height: 56,
+                        borderRadius: 8,
+                        backgroundColor: 'transparent',
+                        border: '1px solid #000',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          color: '#e5383b',
+                          textTransform: 'uppercase',
+                          letterSpacing: '-0.01px',
+                        }}
+                      >
+                        DECLINE
+                      </span>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop CTAs */}
+          <div
+            className="hidden md:flex"
+            style={{
+              padding: '0 32px 24px',
+              gap: 13,
+              justifyContent: 'center',
+            }}
+          >
+            {isExpired ? (
+              <button
+                onClick={() => console.log('Re-request quote:', quote.id)}
+                style={{
+                  width: 385,
+                  height: 56,
+                  borderRadius: 8,
+                  backgroundColor: '#e5383b',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 400,
+                  fontSize: 15,
+                  color: '#fff',
+                  textTransform: 'uppercase',
+                  letterSpacing: '-0.01px',
+                }}
+              >
+                RE-REQUEST
+              </button>
+            ) : (
+              <>
+                <button
+                  disabled={isAccepted}
+                  onClick={() => console.log('Approve and pay:', quote.id)}
+                  style={{
+                    width: 197,
+                    height: 56,
+                    borderRadius: 8,
+                    backgroundColor: isAccepted ? '#828282' : '#e5383b',
+                    border: isAccepted
+                      ? '1px solid #828282'
+                      : '1px solid #e5383b',
+                    cursor: isAccepted ? 'not-allowed' : 'pointer',
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    color: '#fff',
+                    textTransform: 'uppercase',
+                    letterSpacing: '-0.01px',
+                  }}
+                >
+                  {isAccepted ? 'ORDER PLACED' : 'APPROVE AND PAY'}
+                </button>
+                {!isAccepted && (
+                  <button
+                    onClick={() => console.log('Decline:', quote.id)}
+                    style={{
+                      width: 197,
+                      height: 56,
+                      borderRadius: 8,
+                      backgroundColor: 'transparent',
+                      border: '1px solid #000',
+                      cursor: 'pointer',
+                      fontFamily: "'Inter', sans-serif",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      color: '#e5383b',
+                      textTransform: 'uppercase',
+                      letterSpacing: '-0.01px',
+                    }}
+                  >
+                    DECLINE
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
           {/* Bottom nav */}

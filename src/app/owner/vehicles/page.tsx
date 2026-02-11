@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/components/dashboard/Header';
 import NavigationBar from '@/components/dashboard/NavigationBar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -23,6 +24,7 @@ interface DisplayVehicle {
 }
 
 export default function VehiclesPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'all' | 'requested'>('all');
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -30,6 +32,13 @@ export default function VehiclesPage() {
   const [requestedVehicles, setRequestedVehicles] = useState<DisplayVehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Check for addVehicle query parameter
+  useEffect(() => {
+    if (searchParams?.get('addVehicle') === 'true') {
+      setShowAddVehicle(true);
+    }
+  }, [searchParams]);
 
   // Fetch vehicles from API
   const fetchVehicles = useCallback(async () => {

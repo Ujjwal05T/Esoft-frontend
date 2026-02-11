@@ -235,7 +235,11 @@ export default function InquiriesPage() {
   };
 
   const handleViewInquiry = (id: string) => {
-    console.log('View inquiry:', id);
+    // Find the inquiry to get its numeric ID
+    const inquiry = inquiries.find(inq => inq.inquiryNumber === id);
+    if (inquiry) {
+      router.push(`/owner/inquiries/${inquiry.id}`);
+    }
   };
 
   const handleApproveInquiry = (id: string) => {

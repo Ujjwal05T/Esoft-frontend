@@ -34,7 +34,7 @@ export default function Dashboard() {
                   bgColor="#f24822"
                   vectorSrc="/assets/vectors/vehicle-vector.svg"
                   vectorClassName="absolute h-[130px] right-0 mix-blend-color-burn top-[25px] w-[147px]"
-                  href="/owner/vehicles"
+                  href="/owner/orders"
                 />
                 <StatusCard
                   title="Pending Quotes"
@@ -50,7 +50,7 @@ export default function Dashboard() {
                   bgColor="#ffad2a"
                   vectorSrc="/assets/vectors/clock-vector.svg"
                   vectorClassName="absolute h-[130px] right-0 mix-blend-color-burn top-[25px] w-[147px]"
-                  href="/owner/vehicles"
+                  href="/owner/inquiries"
                 />
                 <StatusCard
                   title="Raised Disputes"
@@ -58,7 +58,7 @@ export default function Dashboard() {
                   bgColor="#e43cd3"
                   vectorSrc="/assets/vectors/question-vector.svg"
                   vectorClassName="absolute h-[130px] right-0 mix-blend-color-burn top-[25px] w-[147px]"
-                  href="/owner/vehicles"
+                  href="/owner/inquiries"
                 />
               </div>
 
@@ -66,7 +66,7 @@ export default function Dashboard() {
               <AddVehicleCard />
 
               {/* Pending Vehicle Requests */}
-              <JobsCard jobCount={3} />
+              <JobsCard />
 
               {/* Valvoline Event Card */}
               <EventCard 
