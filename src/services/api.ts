@@ -1447,3 +1447,58 @@ export async function getQuoteById(id: number) {
   });
 }
 
+// Update quote status
+export async function updateQuoteStatus(id: number, status: string) {
+  return apiRequest<{ message: string; status: string }>(`/quote/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+// ==========================================
+// PAYMENT (RAZORPAY)
+// ==========================================
+
+export interface CreatePaymentOrderResponse {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  quoteNumber: string;
+}
+
+export interface VerifyPaymentResponse {
+  message: string;
+  paymentId: string;
+  quoteId: number;
+  status: string;
+}
+
+// Create a Razorpay payment order for a quote
+export async function createPaymentOrder(quoteId: number) {
+  return apiRequest<CreatePaymentOrderResponse>('/payment/create-order', {
+    method: 'POST',
+    body: JSON.stringify({ quoteId }),
+  });
+}
+
+// Verify Razorpay payment and update quote status
+export async function verifyPayment(data: {
+  quoteId: number;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}) {
+  return apiRequest<VerifyPaymentResponse>('/payment/verify', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Get Razorpay public key
+export async function getRazorpayKey() {
+  return apiRequest<{ keyId: string }>('/payment/key', {
+    method: 'GET',
+  });
+}
+

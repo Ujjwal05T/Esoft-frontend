@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import NavigationBar from '@/components/dashboard/NavigationBar';
 import Sidebar from '@/components/layout/Sidebar';
 import StatusBadge from '@/components/ui/StatusBadge';
-import { getQuoteById, type QuoteApiResponse } from '@/services/api';
+import {
+  getQuoteById,
+  updateQuoteStatus,
+  type QuoteApiResponse,
+} from '@/services/api';
 
-export default function QuoteDetailsPage() {
+function QuoteDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const quoteId = params.id as string;
@@ -41,11 +45,32 @@ export default function QuoteDetailsPage() {
     if (quoteId) fetchQuote();
   }, [quoteId]);
 
+  // ── Decline handler ─────────────────────────────────────────
+  const handleDecline = useCallback(async () => {
+    if (!quote) return;
+    if (!confirm('Are you sure you want to decline this quote?')) return;
+
+    try {
+      const result = await updateQuoteStatus(quote.id, 'rejected');
+      if (result.success) {
+        const refreshed = await getQuoteById(quote.id);
+        if (refreshed.success && refreshed.data) {
+          setQuote(refreshed.data);
+        }
+      } else {
+        alert('Failed to decline quote. Please try again.');
+      }
+    } catch {
+      alert('Something went wrong. Please try again.');
+    }
+  }, [quote]);
+
   // ── Derived state ──────────────────────────────────────────
   const isExpired = quote?.expiresAt
     ? new Date(quote.expiresAt) < new Date()
     : false;
   const isAccepted = quote?.status === 'approved';
+  const isDeclined = quote?.status === 'rejected';
 
   const availableItems =
     quote?.items.filter((i) => i.availability === 'in_stock') || [];
@@ -206,6 +231,7 @@ export default function QuoteDetailsPage() {
               paddingTop: 10,
               paddingLeft: 16,
               paddingRight: 16,
+              marginBottom: 16,
             }}
           >
             <div
@@ -1160,19 +1186,17 @@ export default function QuoteDetailsPage() {
                 <>
                   {/* APPROVE AND PAY button */}
                   <button
-                    disabled={isAccepted}
-                    onClick={() =>
-                      console.log('Approve and pay:', quote.id)
-                    }
+                    disabled={isAccepted || isDeclined}
+                    onClick={() => router.push(`/owner/quotes/${quoteId}/payment`)}
                     style={{
                       width: 197,
                       height: 56,
                       borderRadius: 8,
-                      backgroundColor: isAccepted ? '#828282' : '#e5383b',
-                      border: isAccepted
+                      backgroundColor: (isAccepted || isDeclined) ? '#828282' : '#e5383b',
+                      border: (isAccepted || isDeclined)
                         ? '1px solid #828282'
                         : '1px solid #e5383b',
-                      cursor: isAccepted ? 'not-allowed' : 'pointer',
+                      cursor: (isAccepted || isDeclined) ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1188,16 +1212,14 @@ export default function QuoteDetailsPage() {
                         letterSpacing: '-0.01px',
                       }}
                     >
-                      {isAccepted ? 'ORDER PLACED' : 'APPROVE AND PAY'}
+                      {isAccepted ? 'ORDER PLACED' : isDeclined ? 'DECLINED' : 'APPROVE AND PAY'}
                     </span>
                   </button>
 
                   {/* DECLINE button */}
-                  {!isAccepted && (
+                  {!isAccepted && !isDeclined && (
                     <button
-                      onClick={() =>
-                        console.log('Decline:', quote.id)
-                      }
+                      onClick={handleDecline}
                       style={{
                         width: 197,
                         height: 56,
@@ -1261,17 +1283,17 @@ export default function QuoteDetailsPage() {
             ) : (
               <>
                 <button
-                  disabled={isAccepted}
-                  onClick={() => console.log('Approve and pay:', quote.id)}
+                  disabled={isAccepted || isDeclined}
+                  onClick={() => router.push(`/owner/quotes/${quoteId}/payment`)}
                   style={{
                     width: 197,
                     height: 56,
                     borderRadius: 8,
-                    backgroundColor: isAccepted ? '#828282' : '#e5383b',
-                    border: isAccepted
+                    backgroundColor: (isAccepted || isDeclined) ? '#828282' : '#e5383b',
+                    border: (isAccepted || isDeclined)
                       ? '1px solid #828282'
                       : '1px solid #e5383b',
-                    cursor: isAccepted ? 'not-allowed' : 'pointer',
+                    cursor: (isAccepted || isDeclined) ? 'not-allowed' : 'pointer',
                     fontFamily: "'Inter', sans-serif",
                     fontWeight: 600,
                     fontSize: 13,
@@ -1280,11 +1302,11 @@ export default function QuoteDetailsPage() {
                     letterSpacing: '-0.01px',
                   }}
                 >
-                  {isAccepted ? 'ORDER PLACED' : 'APPROVE AND PAY'}
+                  {isAccepted ? 'ORDER PLACED' : isDeclined ? 'DECLINED' : 'APPROVE AND PAY'}
                 </button>
-                {!isAccepted && (
+                {!isAccepted && !isDeclined && (
                   <button
-                    onClick={() => console.log('Decline:', quote.id)}
+                    onClick={handleDecline}
                     style={{
                       width: 197,
                       height: 56,
@@ -1314,3 +1336,5 @@ export default function QuoteDetailsPage() {
     </div>
   );
 }
+
+export default QuoteDetailsPage;
