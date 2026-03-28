@@ -55,7 +55,7 @@ export default function Dashboard() {
               <RaisePartsCard text1='Raise Parts' text2='Inquiry' />
 
               {/* Jobs Card */}
-              <JobsCard jobCount={5} />
+              <JobsCard />
             </div>
           </div>
 

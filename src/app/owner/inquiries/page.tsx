@@ -8,7 +8,7 @@ import DisputeCard, { Dispute } from '@/components/dashboard/DisputeCard';
 import QuoteCard, { Quote } from '@/components/dashboard/QuoteCard';
 import FiltersOverlay from '@/components/overlays/FiltersOverlay';
 import { useRouter } from 'next/navigation';
-import { getQuotesByWorkshopOwnerId, getInquiriesByWorkshopOwnerId, getStoredUser, type QuoteApiResponse, type InquiryResponse } from '@/services/api';
+import { getQuotesByWorkshopOwnerId, getInquiriesByWorkshopOwnerId, getStoredUser, getDisputesByWorkshopOwner, type QuoteApiResponse, type InquiryResponse, type DisputeListItemResponse } from '@/services/api';
 
 // Mock Data for Inquiries
 const mockInquiries: Inquiry[] = [
@@ -220,6 +220,8 @@ export default function InquiriesPage() {
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [inquiries, setInquiries] = useState<InquiryResponse[]>([]);
   const [loadingInquiries, setLoadingInquiries] = useState(false);
+  const [disputes, setDisputes] = useState<DisputeListItemResponse[]>([]);
+  const [loadingDisputes, setLoadingDisputes] = useState(false);
   const [showFiltersOverlay, setShowFiltersOverlay] = useState(false);
 
   const handleToggleInquiry = (id: string) => {
@@ -304,6 +306,26 @@ export default function InquiriesPage() {
       }
     }
     fetchQuotes();
+  }, []);
+
+  // Fetch disputes from API
+  useEffect(() => {
+    async function fetchDisputes() {
+      try {
+        setLoadingDisputes(true);
+        const user = getStoredUser();
+        if (!user) return;
+        const result = await getDisputesByWorkshopOwner(user.id);
+        if (result.success && result.data) {
+          setDisputes(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch disputes:', error);
+      } finally {
+        setLoadingDisputes(false);
+      }
+    }
+    fetchDisputes();
   }, []);
 
   return (
@@ -494,23 +516,70 @@ export default function InquiriesPage() {
             {activeTab === 'disputes' && (
               /* Disputes List */
               <div className="flex flex-col gap-[16px]">
-                {/* No disputes found message */}
-                <div className="bg-[#f5f5f5] rounded-[12px] p-[32px] text-center">
-                  <p className="text-[16px] font-medium text-[#2b2b2b] mb-[8px]">No Disputes Found</p>
-                  <p className="text-[14px] text-[#99a2b6]">Your disputes will appear here</p>
-                </div>
-                {/* Keeping disputes for future use - uncomment below when ready
-                {mockDisputes.map((dispute) => (
-                  <DisputeCard
-                    key={dispute.id}
-                    dispute={dispute}
-                    onEdit={handleEditDispute}
-                    onAccept={handleAcceptDispute}
-                    onView={handleViewDispute}
-                    onChat={handleChatDispute}
-                  />
-                ))}
-                */}
+                {loadingDisputes ? (
+                  <div className="bg-[#f5f5f5] rounded-[12px] p-[16px]">
+                    <p className="text-[14px] text-[#99a2b6] text-center">Loading disputes...</p>
+                  </div>
+                ) : disputes.length > 0 ? (
+                  disputes.map((apiDispute) => {
+                    // Map backend status to frontend status
+                    const mapStatus = (backendStatus: string): Dispute['status'] => {
+                      switch (backendStatus) {
+                        case 'Resolved':
+                          return 'closed';
+                        case 'Pending':
+                        case 'Acknowledged':
+                        case 'Investigating':
+                          return 'open';
+                        default:
+                          return 'open';
+                      }
+                    };
+
+                    // Format date safely
+                    const formatDate = (dateString: string): string => {
+                      try {
+                        const date = new Date(dateString);
+                        if (isNaN(date.getTime())) return 'Invalid date';
+                        return date.toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        }).toLowerCase();
+                      } catch {
+                        return 'Invalid date';
+                      }
+                    };
+
+                    // Map API response to Dispute type expected by DisputeCard
+                    const dispute: Dispute = {
+                      id: apiDispute.disputeNumber,
+                      vehicleName: '', // Not needed since showVehicleInfo is false
+                      plateNumber: '', // Not needed since showVehicleInfo is false
+                      receivedDate: formatDate(apiDispute.date),
+                      status: mapStatus(apiDispute.status),
+                      disputeRaised: apiDispute.issue,
+                      resolutionStatus: apiDispute.status === 'Resolved' ? 'Resolved' : apiDispute.status === 'Investigating' ? 'Under Investigation' : undefined,
+                      showVehicleInfo: false,
+                      action: apiDispute.status === 'Pending' ? 'accept' : 'chat',
+                    };
+                    return (
+                      <DisputeCard
+                        key={dispute.id}
+                        dispute={dispute}
+                        onEdit={handleEditDispute}
+                        onAccept={handleAcceptDispute}
+                        onView={handleViewDispute}
+                        onChat={handleChatDispute}
+                      />
+                    );
+                  })
+                ) : (
+                  <div className="bg-[#f5f5f5] rounded-[12px] p-[32px] text-center">
+                    <p className="text-[16px] font-medium text-[#2b2b2b] mb-[8px]">No Disputes Found</p>
+                    <p className="text-[14px] text-[#99a2b6]">Your disputes will appear here</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

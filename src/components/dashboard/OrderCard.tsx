@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import StatusBadge, { StatusType, normalizeStatus } from '@/components/ui/StatusBadge';
 
 export type OrderStatus = 'in-process' | 'shipped' | 'delivered';
@@ -87,6 +88,7 @@ export default function OrderCard({
   onTrackOrder,
   onDownloadInvoice,
 }: OrderCardProps) {
+  const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const visibleParts = isExpanded ? order.orderedParts.slice(0, 3) : [];
@@ -98,6 +100,17 @@ export default function OrderCard({
   // Toggle expand when clicking anywhere on the card header
   const handleCardClick = () => {
     setIsExpanded(!isExpanded);
+  };
+
+  // Navigate to order details page — pass card data as search params in case detail API returns null
+  const handleTrackClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const params = new URLSearchParams({
+      vehicleName: order.vehicleName,
+      plateNumber: order.plateNumber,
+      placedDate: order.placedDate,
+    });
+    router.push(`/owner/orders/${order.id}?${params.toString()}`);
   };
 
   // Prevent action button clicks from toggling expansion
@@ -275,7 +288,7 @@ export default function OrderCard({
               </button>
             ) : order.status === 'shipped' ? (
               <button
-                onClick={(e) => handleActionClick(e, () => onTrackOrder?.(order.id))}
+                onClick={handleTrackClick}
                 className="flex-1 bg-[#e5383b] text-white py-[12px] rounded-[8px] hover:bg-[#c82d30] transition-colors flex items-center justify-center gap-[8px]"
               >
                 <span
@@ -288,7 +301,7 @@ export default function OrderCard({
             ) : (
               <>
                 <button
-                  onClick={(e) => handleActionClick(e, () => onTrackOrder?.(order.id))}
+                  onClick={handleTrackClick}
                   className="flex-1 bg-[#e5383b] text-white py-[12px] rounded-[8px] hover:bg-[#c82d30] transition-colors flex items-center justify-center gap-[8px]"
                 >
                   <span
@@ -299,7 +312,7 @@ export default function OrderCard({
                   </span>
                 </button>
                 <button
-                  onClick={(e) => handleActionClick(e, () => onTrackOrder?.(order.id))}
+                  onClick={handleTrackClick}
                   className="w-[50px] border border-[#e5383b] rounded-[8px] flex items-center justify-center hover:bg-[#fff5f5] transition-colors"
                 >
                   <TrackIcon />

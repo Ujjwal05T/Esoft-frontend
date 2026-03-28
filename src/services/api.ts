@@ -1502,3 +1502,209 @@ export async function getRazorpayKey() {
   });
 }
 
+// ==========================================
+// ORDERS
+// ==========================================
+
+export interface WorkshopOrderListItem {
+  id: number;
+  orderNumber: string;
+  quoteNumber: string;
+  inquiryNumber: string;
+  workshopName: string;
+  assignedSalesPersonName: string | null;
+  source: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+  vehicleName: string | null;
+  plateNumber: string | null;
+}
+
+export interface WorkshopOrderListResponse {
+  orders: WorkshopOrderListItem[];
+  totalCount: number;
+}
+
+export async function getOrdersByWorkshopId(workshopOwnerId: number) {
+  return apiRequest<WorkshopOrderListResponse>(`/order/workshop/${workshopOwnerId}`, {
+    method: 'GET',
+  });
+}
+
+export async function getOrdersByVehicleId(vehicleId: number) {
+  return apiRequest<WorkshopOrderListResponse>(`/order/vehicle/${vehicleId}`, {
+    method: 'GET',
+  });
+}
+
+export interface OrderItemApiResponse {
+  id: number;
+  quoteItemId: number | null;
+  partName: string;
+  partNumber: string;
+  brand: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  createdAt: string;
+}
+
+export interface OrderDetailApiResponse {
+  id: number;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  packingCharges: number;
+  forwardingCharges: number;
+  shippingCharges: number;
+  estimatedDeliveryDate: string | null;
+  dispatchDate: string | null;
+  createdAt: string | null;
+  vehicleName: string | null;
+  vehicleBrand: string | null;
+  vehicleModel: string | null;
+  vehicleVariant: string | null;
+  plateNumber: string | null;
+  // Delivery details
+  lrNumber: string | null;
+  deliveryPartnerName: string | null;
+  deliveryDriverName: string | null;
+  deliveryDriverContact: string | null;
+  workshopPhone: string | null;
+  items: OrderItemApiResponse[];
+}
+
+export async function getOrderById(id: number) {
+  return apiRequest<OrderDetailApiResponse>(`/order/${id}`, {
+    method: 'GET',
+  });
+}
+
+// ==========================================
+// DISPUTES
+// ==========================================
+
+export interface CreateDisputeRequest {
+  orderId: number;
+  workshopOwnerId: number;
+  partName: string;
+  reason: string;
+  remark: string;
+  audioUrl?: string;
+  imageUrl1?: string;
+  imageUrl2?: string;
+  imageUrl3?: string;
+  raisedByStaffId?: number;
+}
+
+export interface CreateDisputeResponse {
+  id: number;
+  disputeNumber: string;
+  orderNumber: string;
+  workshopId: number;
+  workshopName: string;
+  contactPerson: string;
+  phoneNumber: string;
+  category: string;
+  subject: string;
+  description: string;
+  priority: string;
+  status: string;
+  assignedTo: string | null;
+  assignedToId: number | null;
+  raisedOn: string;
+}
+
+export interface DisputeListItemResponse {
+  id: number;
+  disputeNumber: string;
+  orderNumber: string;
+  workshopName: string;
+  contactPerson: string;
+  issue: string;
+  category: string;
+  priority: string;
+  status: string;
+  date: string;
+  assignedTo: string | null;
+}
+
+export async function createDispute(request: CreateDisputeRequest) {
+  return apiRequest<CreateDisputeResponse>(`/disputes`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+// Create dispute with file uploads (audio and images)
+export async function createDisputeWithFiles(
+  orderId: number,
+  workshopOwnerId: number,
+  partName: string,
+  reason: string,
+  remark: string,
+  audioBlob?: Blob,
+  images?: File[],
+  raisedByStaffId?: number,
+  partId?: number
+) {
+  const formData = new FormData();
+
+  formData.append('orderId', orderId.toString());
+  formData.append('workshopOwnerId', workshopOwnerId.toString());
+  formData.append('partName', partName);
+  formData.append('reason', reason);
+  formData.append('remark', remark);
+
+  if (raisedByStaffId) {
+    formData.append('raisedByStaffId', raisedByStaffId.toString());
+  }
+
+  if (partId) {
+    formData.append('partId', partId.toString());
+  }
+
+  if (audioBlob) {
+    formData.append('audioFile', audioBlob, 'audio_recording.webm');
+  }
+
+  if (images && images.length > 0) {
+    if (images[0]) formData.append('image1', images[0]);
+    if (images[1]) formData.append('image2', images[1]);
+    if (images[2]) formData.append('image3', images[2]);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/disputes/with-files`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    return { success: false, error: data.message || 'Failed to create dispute' };
+  }
+
+  return { success: true, data };
+}
+
+// Get disputes by workshop owner (optionally filtered by orderId)
+export async function getDisputesByWorkshopOwner(workshopOwnerId: number, orderId?: number) {
+  const url = orderId
+    ? `/disputes/workshop-owner/${workshopOwnerId}?orderId=${orderId}`
+    : `/disputes/workshop-owner/${workshopOwnerId}`;
+
+  return apiRequest<DisputeListItemResponse[]>(url, {
+    method: 'GET',
+  });
+}
+
+// Get disputes by vehicle
+export async function getDisputesByVehicle(vehicleId: number) {
+  return apiRequest<DisputeListItemResponse[]>(`/disputes/vehicle/${vehicleId}`, {
+    method: 'GET',
+  });
+}
+

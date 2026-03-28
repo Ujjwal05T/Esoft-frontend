@@ -28,13 +28,19 @@ interface VehicleInfo {
   plateNumber: string;
 }
 
+interface OrderWithParts {
+  id: string;
+  orderId: string;
+  date: string;
+  parts: { id: string; name: string }[];
+}
+
 interface RaiseDisputeOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (data: DisputeFormData) => void;
   onChatWithUs?: () => void;
-  orderSuggestions?: OrderSuggestion[];
-  parts?: Part[];
+  orders?: OrderWithParts[];
   reasons?: Reason[];
   vehicleInfo?: VehicleInfo;
   buttonText?: 'CONFIRM' | 'SEND REQUEST';
@@ -42,6 +48,7 @@ interface RaiseDisputeOverlayProps {
 
 export interface DisputeFormData {
   orderId: string;
+  partId: string;
   partName: string;
   reason: string;
   remark: string;
@@ -166,14 +173,15 @@ export default function RaiseDisputeOverlay({
   onClose,
   onConfirm,
   onChatWithUs,
-  orderSuggestions = [],
-  parts = [],
+  orders = [],
   reasons = [],
   vehicleInfo,
   buttonText = 'CONFIRM',
 }: RaiseDisputeOverlayProps) {
   // Form state
   const [orderId, setOrderId] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [selectedPartId, setSelectedPartId] = useState('');
   const [selectedPart, setSelectedPart] = useState('');
   const [selectedReason, setSelectedReason] = useState('');
   const [remark, setRemark] = useState('');
@@ -184,10 +192,10 @@ export default function RaiseDisputeOverlay({
   const [showOrderSuggestions, setShowOrderSuggestions] = useState(false);
   const [showPartDropdown, setShowPartDropdown] = useState(false);
   const [showReasonDropdown, setShowReasonDropdown] = useState(false);
-  
+
   // Validation state
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  
+
   // Audio state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -203,8 +211,12 @@ export default function RaiseDisputeOverlay({
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Get selected order and its parts
+  const selectedOrder = orders.find(o => o.id === selectedOrderId);
+  const availableParts = selectedOrder?.parts || [];
+
   // Filter order suggestions based on input
-  const filteredSuggestions = orderSuggestions.filter((order) =>
+  const filteredSuggestions = orders.filter((order) =>
     order.orderId.toLowerCase().includes(orderId.toLowerCase())
   );
 
@@ -312,21 +324,22 @@ export default function RaiseDisputeOverlay({
   // Handle form submission
   const handleConfirm = () => {
     setHasAttemptedSubmit(true);
-    
+
     // Validate all required fields
     if (!orderId.trim() || !selectedPart || !selectedReason || !remark.trim()) {
       return; // Don't submit if validation fails
     }
-    
+
     onConfirm({
       orderId,
+      partId: selectedPartId,
       partName: selectedPart,
       reason: selectedReason,
       remark,
       audioBlob: audioBlob || undefined,
       images: images.filter((img): img is File => img !== null),
     });
-    
+
     // Show success overlay
     setShowSuccess(true);
   };
@@ -486,6 +499,9 @@ export default function RaiseDisputeOverlay({
                     key={suggestion.id}
                     onClick={() => {
                       setOrderId(suggestion.orderId);
+                      setSelectedOrderId(suggestion.id);
+                      setSelectedPart('');
+                      setSelectedPartId('');
                       setShowOrderSuggestions(false);
                     }}
                     className="w-full px-[16px] py-[12px] flex items-center justify-between hover:bg-[#f5f5f5] text-left border-b border-[#f0f0f0] last:border-b-0"
@@ -549,13 +565,14 @@ export default function RaiseDisputeOverlay({
             )}
 
             {/* Parts Dropdown */}
-            {showPartDropdown && parts.length > 0 && (
+            {showPartDropdown && availableParts.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-[4px] bg-white border border-[#d3d3d3] rounded-[8px] shadow-lg z-10 max-h-[200px] overflow-y-auto">
-                {parts.map((part) => (
+                {availableParts.map((part) => (
                   <button
                     key={part.id}
                     onClick={() => {
                       setSelectedPart(part.name);
+                      setSelectedPartId(part.id);
                       setShowPartDropdown(false);
                     }}
                     className="w-full px-[16px] py-[12px] text-left hover:bg-[#f5f5f5] border-b border-[#f0f0f0] last:border-b-0"
@@ -568,6 +585,21 @@ export default function RaiseDisputeOverlay({
                     </span>
                   </button>
                 ))}
+              </div>
+            )}
+            {/* No parts message */}
+            {showPartDropdown && !selectedOrderId && (
+              <div className="absolute top-full left-0 right-0 mt-[4px] bg-white border border-[#d3d3d3] rounded-[8px] shadow-lg z-10 px-[16px] py-[12px]">
+                <span className="text-[14px] text-[#828282]" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  Please select an order first
+                </span>
+              </div>
+            )}
+            {showPartDropdown && selectedOrderId && availableParts.length === 0 && (
+              <div className="absolute top-full left-0 right-0 mt-[4px] bg-white border border-[#d3d3d3] rounded-[8px] shadow-lg z-10 px-[16px] py-[12px]">
+                <span className="text-[14px] text-[#828282]" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  No parts found in this order
+                </span>
               </div>
             )}
           </div>

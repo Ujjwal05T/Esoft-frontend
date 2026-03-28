@@ -17,24 +17,9 @@ import GateOutOverlay from '@/components/overlays/GateOutOverlay';
 import OrderCard, { type Order } from '@/components/dashboard/OrderCard';
 import QuoteCard, { type Quote } from '@/components/dashboard/QuoteCard';
 import JobCard from '@/components/dashboard/JobCard';
-import { getVehicleById, getJobCardsByVehicle, getQuotesByVehicleId, getActiveVehicleVisit, type VehicleResponse, type JobCardResponse, type QuoteApiResponse, type VehicleVisitResponse } from '@/services/api';
+import { getVehicleById, getJobCardsByVehicle, getQuotesByVehicleId, getActiveVehicleVisit, getOrdersByVehicleId, getOrderById, getStoredUser, createDisputeWithFiles, getDisputesByVehicle, type VehicleResponse, type JobCardResponse, type QuoteApiResponse, type VehicleVisitResponse, type DisputeListItemResponse } from '@/services/api';
 
-// Mock data for Raise Dispute overlay
-const orderSuggestions = [
-  { id: '1', orderId: 'ord/esoft/5420012/25-26', date: '24 Dec 2025' },
-  { id: '2', orderId: 'ord/esoft/5489812/25-26', date: '24 Dec 2025' },
-  { id: '3', orderId: 'ord/esoft/5490711/25-26', date: '24 Dec 2025' },
-  { id: '4', orderId: 'ord/esoft/5445324/25-26', date: '22 Dec 2025' },
-];
-
-const partsOptions = [
-  { id: '1', name: 'Oil Filter' },
-  { id: '2', name: 'Rear Brake Pads' },
-  { id: '3', name: 'Replace Order' },
-  { id: '4', name: 'Front Brake Pads' },
-  { id: '5', name: 'Air Filter' },
-];
-
+// Mock data for reasons (will be replaced with API data in future)
 const reasonsOptions = [
   { id: '1', name: 'Part Damaged' },
   { id: '2', name: 'Wrong Part Delivered' },
@@ -43,61 +28,21 @@ const reasonsOptions = [
   { id: '5', name: 'Defective Part' },
 ];
 
-// Mock data for Orders
-const mockOrders: Order[] = [
-  {
-    id: '1',
-    vehicleName: 'Toyota Crysta',
-    plateNumber: 'MP09-GP4567',
-    orderId: 'ET/ORD/24-25/01255',
-    placedDate: '5 dec 2025',
-    deliveryDate: '12 dec 2025',
-    totalAmount: 2750.50,
-    status: 'in-process',
-    orderedParts: [
-      { id: '1', name: 'Brake Pad Set (Front)', brand: 'Bosch OEM', price: 500, quantity: 2 },
-      { id: '2', name: 'Oil Filter (Synthetic)', brand: 'Aftra Modval', price: 1650.50, quantity: 4 },
-      { id: '3', name: 'Wiper Blade - Driver Side', brand: 'Bosch OEM', price: 600, quantity: 1 },
-      { id: '4', name: 'Air Filter', brand: 'K&N', price: 850, quantity: 1 },
-      { id: '5', name: 'Spark Plug Set', brand: 'NGK', price: 400, quantity: 4 },
-      { id: '6', name: 'Coolant', brand: 'Castrol', price: 350, quantity: 2 },
-      { id: '7', name: 'Brake Fluid', brand: 'Motul', price: 280, quantity: 1 },
-      { id: '8', name: 'Engine Oil 5W-30', brand: 'Shell', price: 1200, quantity: 2 },
-      { id: '9', name: 'Cabin Filter', brand: 'Mann', price: 450, quantity: 1 },
-      { id: '10', name: 'Transmission Oil', brand: 'Castrol', price: 680, quantity: 1 },
-    ],
-  },
-  {
-    id: '2',
-    vehicleName: 'Toyota Crysta',
-    plateNumber: 'MP09-GP4567',
-    orderId: 'ET/ORD/24-25/01256',
-    placedDate: '3 dec 2025',
-    deliveryDate: '12 dec 2025',
-    totalAmount: 2750.50,
-    status: 'shipped',
-    orderedParts: [
-      { id: '1', name: 'Brake Pad Set (Front)', brand: 'Bosch OEM', price: 500, quantity: 2 },
-      { id: '2', name: 'Oil Filter (Synthetic)', brand: 'Aftra Modval', price: 1650.50, quantity: 4 },
-      { id: '3', name: 'Wiper Blade - Driver Side', brand: 'Bosch OEM', price: 600, quantity: 1 },
-    ],
-  },
-  {
-    id: '3',
-    vehicleName: 'Toyota Crysta',
-    plateNumber: 'MP09-GP4567',
-    orderId: 'ET/ORD/24-25/01244',
-    placedDate: '1 dec 2025',
-    deliveryDate: '12 dec 2025',
-    totalAmount: 2750.50,
-    status: 'delivered',
-    orderedParts: [
-      { id: '1', name: 'Brake Pad Set (Front)', brand: 'Bosch OEM', price: 500, quantity: 2 },
-      { id: '2', name: 'Oil Filter (Synthetic)', brand: 'Aftra Modval', price: 1650.50, quantity: 4 },
-      { id: '3', name: 'Wiper Blade - Driver Side', brand: 'Bosch OEM', price: 600, quantity: 1 },
-    ],
-  },
-];
+function formatOrderDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function mapOrderStatus(backendStatus: string): Order['status'] {
+  switch (backendStatus) {
+    case 'shipped': return 'shipped';
+    case 'delivered': return 'delivered';
+    default: return 'in-process';
+  }
+}
 
 // Mock vehicle data - same as in vehicles page
 const vehicleData: { [key: string]: any } = {
@@ -603,6 +548,10 @@ export default function VehicleDetailPage() {
   const [expandedQuotes, setExpandedQuotes] = useState<{ [key: string]: boolean }>({});
   const [vehicleQuotes, setVehicleQuotes] = useState<QuoteApiResponse[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
+  const [vehicleOrders, setVehicleOrders] = useState<Order[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [vehicleDisputes, setVehicleDisputes] = useState<DisputeListItemResponse[]>([]);
+  const [loadingDisputes, setLoadingDisputes] = useState(false);
 
   // State for real API data
   const [realVehicleData, setRealVehicleData] = useState<VehicleResponse | null>(null);
@@ -703,6 +652,54 @@ export default function VehicleDetailPage() {
     }
   }, [vehicleId]);
 
+  // Fetch orders for this vehicle
+  useEffect(() => {
+    async function fetchOrders() {
+      try {
+        setLoadingOrders(true);
+        const listRes = await getOrdersByVehicleId(parseInt(vehicleId));
+        if (listRes.success && listRes.data) {
+          const detailResults = await Promise.all(
+            listRes.data.orders.map((o) => getOrderById(o.id))
+          );
+          const mapped: Order[] = listRes.data.orders.map((o, idx) => {
+            const detail = detailResults[idx];
+            const items = detail.success && detail.data ? detail.data.items : [];
+            const estimatedDelivery =
+              detail.success && detail.data?.estimatedDeliveryDate
+                ? formatOrderDate(detail.data.estimatedDeliveryDate)
+                : '–';
+            return {
+              id: String(o.id),
+              vehicleName: o.vehicleName ?? o.orderNumber,
+              plateNumber: o.plateNumber ?? '',
+              orderId: o.orderNumber,
+              placedDate: formatOrderDate(o.createdAt),
+              deliveryDate: estimatedDelivery,
+              totalAmount: o.totalAmount,
+              status: mapOrderStatus(o.status),
+              orderedParts: items.map((item) => ({
+                id: String(item.id),
+                name: item.partName,
+                brand: item.brand,
+                price: item.unitPrice,
+                quantity: item.quantity,
+              })),
+            };
+          });
+          setVehicleOrders(mapped);
+        }
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+      } finally {
+        setLoadingOrders(false);
+      }
+    }
+    if (vehicleId) {
+      fetchOrders();
+    }
+  }, [vehicleId]);
+
   // Fetch active vehicle visit for this vehicle (contains odometer reading and problems shared)
   useEffect(() => {
     async function fetchActiveVisit() {
@@ -720,6 +717,29 @@ export default function VehicleDetailPage() {
     }
     if (vehicleId) {
       fetchActiveVisit();
+    }
+  }, [vehicleId]);
+
+  // Fetch disputes for this vehicle
+  useEffect(() => {
+    async function fetchDisputes() {
+      try {
+        setLoadingDisputes(true);
+
+        // Get all disputes for this specific vehicle
+        const result = await getDisputesByVehicle(parseInt(vehicleId));
+        if (result.success && result.data) {
+          setVehicleDisputes(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch disputes:', error);
+      } finally {
+        setLoadingDisputes(false);
+      }
+    }
+
+    if (vehicleId) {
+      fetchDisputes();
     }
   }, [vehicleId]);
 
@@ -1130,23 +1150,28 @@ export default function VehicleDetailPage() {
           {/* Orders Tab Content */}
           {activeTab === 'orders' && (
             <div className="rounded-[12px]">
-              {/* No orders found message */}
-              <div className="bg-white rounded-[12px] p-[32px] text-center">
-                <p className="text-[16px] font-medium text-[#2b2b2b] mb-[8px]">No Orders Found</p>
-                <p className="text-[14px] text-[#99a2b6]">Orders for this vehicle will appear here</p>
-              </div>
-              {/* Keeping mockOrders for future use - uncomment below when ready
-              <div className='space-y-4'>
-                {mockOrders.map((order: Order) => (
-                  <OrderCard key={order.id} 
-                   order={order}
-                   defaultExpanded={false}
-                   onTrackOrder={(orderId: string) => console.log('Track order:', orderId)}
-                   onDownloadInvoice={(orderId: string) => console.log('Download invoice:', orderId)} 
-                  />
-                ))}
-              </div>
-              */}
+              {loadingOrders ? (
+                <div className="bg-white rounded-[12px] p-[32px] text-center">
+                  <p className="text-[14px] text-[#757575]">Loading orders...</p>
+                </div>
+              ) : vehicleOrders.length === 0 ? (
+                <div className="bg-white rounded-[12px] p-[32px] text-center">
+                  <p className="text-[16px] font-medium text-[#2b2b2b] mb-[8px]">No Orders Found</p>
+                  <p className="text-[14px] text-[#99a2b6]">Orders for this vehicle will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {vehicleOrders.map((order) => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      defaultExpanded={false}
+                      onTrackOrder={(orderId) => console.log('Track order:', orderId)}
+                      onDownloadInvoice={(orderId) => console.log('Download invoice:', orderId)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1254,17 +1279,64 @@ export default function VehicleDetailPage() {
           {/* Disputes Tab Content */}
           {activeTab === 'disputes' && (
             <div className="flex flex-col gap-[12px]">
-              {vehicle.disputes && vehicle.disputes.length > 0 ? (
-                vehicle.disputes.map((dispute: Dispute) => (
-                  <DisputeCard
-                    key={dispute.id}
-                    dispute={dispute}
-                    onEdit={(id) => console.log('Edit dispute:', id)}
-                    onAccept={(id) => console.log('Accept dispute:', id)}
-                    onView={(id) => console.log('View dispute details:', id)}
-                    onChat={(id) => console.log('Open chat for dispute:', id)}
-                  />
-                ))
+              {loadingDisputes ? (
+                <div className="bg-white rounded-[12px] p-[16px]">
+                  <p className="text-[14px] text-[#99a2b6] text-center">Loading disputes...</p>
+                </div>
+              ) : vehicleDisputes.length > 0 ? (
+                vehicleDisputes.map((apiDispute) => {
+                  // Map backend status to frontend status
+                  const mapStatus = (backendStatus: string): Dispute['status'] => {
+                    switch (backendStatus) {
+                      case 'Resolved':
+                        return 'closed';
+                      case 'Pending':
+                      case 'Acknowledged':
+                      case 'Investigating':
+                        return 'open';
+                      default:
+                        return 'open';
+                    }
+                  };
+
+                  // Format date safely
+                  const formatDate = (dateString: string): string => {
+                    try {
+                      const date = new Date(dateString);
+                      if (isNaN(date.getTime())) return 'Invalid date';
+                      return date.toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      }).toLowerCase();
+                    } catch {
+                      return 'Invalid date';
+                    }
+                  };
+
+                  // Map API response to Dispute type expected by DisputeCard
+                  const dispute: Dispute = {
+                    id: apiDispute.disputeNumber,
+                    vehicleName: `${realVehicleData?.brand || ''} ${realVehicleData?.model || ''}`.trim() || 'Unknown Vehicle',
+                    plateNumber: realVehicleData?.plateNumber || '',
+                    receivedDate: formatDate(apiDispute.date),
+                    status: mapStatus(apiDispute.status),
+                    disputeRaised: apiDispute.issue,
+                    resolutionStatus: apiDispute.status === 'Resolved' ? 'Resolved' : apiDispute.status === 'Investigating' ? 'Under Investigation' : undefined,
+                    showVehicleInfo: true,
+                    action: apiDispute.status === 'Pending' ? 'accept' : 'chat',
+                  };
+                  return (
+                    <DisputeCard
+                      key={dispute.id}
+                      dispute={dispute}
+                      onEdit={(id) => console.log('Edit dispute:', id)}
+                      onAccept={(id) => console.log('Accept dispute:', id)}
+                      onView={(id) => console.log('View dispute details:', id)}
+                      onChat={(id) => console.log('Open chat for dispute:', id)}
+                    />
+                  );
+                })
               ) : (
                 <div className="bg-white rounded-[12px] p-[16px]">
                   <p className="text-[14px] text-[#99a2b6] text-center">
@@ -1308,20 +1380,69 @@ export default function VehicleDetailPage() {
       <RaiseDisputeOverlay
         isOpen={showRaiseDisputeOverlay}
         onClose={() => setShowRaiseDisputeOverlay(false)}
-        onConfirm={(data) => {
-          console.log('Dispute submitted:', data);
-          // setShowRaiseDisputeOverlay(false);
+        onConfirm={async (data) => {
+          try {
+            // Get user info for workshopOwnerId
+            const user = getStoredUser();
+            const workshopOwnerId = realVehicleData?.workshopOwnerId || user?.id;
+
+            if (!workshopOwnerId) {
+              alert('Unable to identify workshop. Please try again.');
+              return;
+            }
+
+            // Find the selected order by orderId (order number in the form)
+            const selectedOrder = vehicleOrders.find(
+              order => order.orderId === data.orderId || order.id === data.orderId
+            );
+
+            if (!selectedOrder) {
+              alert('Selected order not found. Please try again.');
+              return;
+            }
+
+            // Call the API with files - they will be uploaded automatically
+            const result = await createDisputeWithFiles(
+              parseInt(selectedOrder.id),
+              workshopOwnerId,
+              data.partName,
+              data.reason,
+              data.remark,
+              data.audioBlob,
+              data.images,
+              user?.role === 'staff' ? user.id : undefined,
+              data.partId ? parseInt(data.partId) : undefined
+            );
+
+            if (result.success) {
+              alert('Dispute raised successfully!');
+              setShowRaiseDisputeOverlay(false);
+              // Optionally refresh data here
+            } else {
+              alert(`Failed to raise dispute: ${result.error || 'Please try again.'}`);
+            }
+          } catch (error) {
+            console.error('Error raising dispute:', error);
+            alert('An error occurred while raising the dispute.');
+          }
         }}
         onChatWithUs={() => console.log('Open chat')}
-        orderSuggestions={orderSuggestions}
-        parts={partsOptions}
+        orders={vehicleOrders.map(order => ({
+          id: order.id,
+          orderId: order.orderId,
+          date: order.placedDate,
+          parts: order.orderedParts.map(part => ({
+            id: part.id,
+            name: part.name
+          }))
+        }))}
         reasons={reasonsOptions}
         vehicleInfo={{
-          year: vehicle.year,
-          make: vehicle.make,
-          model: vehicle.model,
-          specs: vehicle.specs,
-          plateNumber: vehicle.plateNumber,
+          year: realVehicleData?.year || vehicle.year,
+          make: realVehicleData?.brand || vehicle.make,
+          model: realVehicleData?.model || vehicle.model,
+          specs: realVehicleData?.specs || vehicle.specs,
+          plateNumber: realVehicleData?.plateNumber || vehicle.plateNumber,
         }}
         buttonText="SEND REQUEST"
       />
